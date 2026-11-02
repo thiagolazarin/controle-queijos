@@ -158,6 +158,7 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      access_email_sync_ready: { Args: Record<string, never>; Returns: boolean };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       current_establishment_id: { Args: Record<PropertyKey, never>; Returns: string | null };
       create_order: {

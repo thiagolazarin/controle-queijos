@@ -1,8 +1,23 @@
 # Implantação
 
-## Atualização: endereço, previsão e resumo
+## Revisão geral de 02/11/2026
 
-No projeto Supabase existente, aplique **somente a nova migration** [20261102000100_delivery_details.sql](../supabase/migrations/20261102000100_delivery_details.sql) pelo SQL Editor, uma única vez. Não reaplique a migration inicial. A nova migration precisa estar aplicada **antes de publicar esta versão na Vercel**.
+As verificações locais passaram: lint, TypeScript, 23 testes Node e build de produção. O PostgreSQL 17 isolado aprovou 125 asserções SQL. Login em produção local, rotas protegidas e telas pequenas também foram conferidos. Veja os limites e resultados em [validação](validacao.md).
+
+**Pendência de segurança confirmada:** uma chave administrativa antiga no histórico do Git ainda foi aceita pelo mesmo projeto Supabase em consulta HEAD, sem retornar registros. Ela precisa ser revogada. A chave atual ser diferente não invalida a anterior. Não publique o histórico com a credencial ainda válida.
+
+1. O ambiente local já usa uma chave secreta `sb_secret_...` em `SUPABASE_SERVICE_ROLE_KEY` e uma publishable `sb_publishable_...` na variável pública. Confira na Vercel e em outras integrações que elas também usam as chaves novas. O nome da variável de servidor permanece por compatibilidade; não é necessário gerar outra chave atual apenas para desativar a antiga.
+2. Se algum ambiente ainda usar uma chave legada, substitua-a pelas chaves novas do projeto e faça novo deploy nesse ambiente. Alterações locais exigem reiniciar o servidor. Verifique o funcionamento antes de desativar as chaves antigas.
+3. Quando os componentes estiverem usando as chaves novas, desative as chaves legadas em **Settings → API Keys**. Como a chave exposta é `service_role` legada, também migre para JWT Signing Keys e revogue o segredo JWT legado seguindo o [procedimento oficial de revogação](https://supabase.com/docs/guides/security/rotate-leaked-api-keys). A revogação pode exigir novo login dos usuários. Não reative a chave comprometida.
+4. Confira login e administração com a chave nova e que a antiga já não acessa a API. Não cole chaves em mensagens ou evidências.
+
+**Atualização do banco nesta revisão:** aplique somente [20261102000200_sync_access_email.sql](../supabase/migrations/20261102000200_sync_access_email.sql), uma única vez, antes de publicar estas correções. Ela sincroniza cadastro e Auth na mesma transação quando o e-mail muda. Sem essa atualização, a aplicação bloqueia a troca de e-mail e orienta atualizar o banco. A nova migration não foi aplicada remotamente nesta revisão.
+
+A consulta remota somente de leitura confirmou que endereço/previsão e suas funções já estão disponíveis no projeto configurado. Não reaplique as migrations anteriores. Em uma instalação nova, aplique as três migrations em ordem.
+
+## Atualização anterior: endereço, previsão e resumo
+
+Somente nas instalações que ainda não receberam endereço/previsão, aplique a migration [20261102000100_delivery_details.sql](../supabase/migrations/20261102000100_delivery_details.sql) pelo SQL Editor, uma única vez. Não reaplique a migration inicial. A nova migration precisa estar aplicada **antes de publicar esta versão na Vercel**.
 
 Depois do SQL, publique o código atualizado. Na administração, preencha o endereço de entrega padrão no cadastro de cada cliente. O próximo pedido já virá com esse endereço, e o cliente poderá ajustar o local apenas para aquela entrega.
 
@@ -12,14 +27,14 @@ A família informa a previsão no próprio painel de entregas ou nos detalhes do
 
 O resumo reúne quantidade, valor, data, endereço e previsão. Antes da confirmação ele permite conferir os dados; depois de salvar, os detalhes usam os valores persistidos no banco.
 
-Verificações desta atualização: 19 testes locais, TypeScript e lint; a migration passou em PostgreSQL 17 isolado com 104 verificações SQL, 6 verificações de upgrade e 5 verificações adicionais entre transações. Esses testes não substituem o aceite no Supabase hospedado. A nova migration não foi aplicada remotamente por esta implementação.
+Verificações desta atualização: 19 testes locais, TypeScript e lint; a migration passou em PostgreSQL 17 isolado com 104 verificações SQL, 6 verificações de upgrade e 5 verificações adicionais entre transações. Esses testes não substituem o aceite no Supabase hospedado. Na revisão geral, uma consulta remota de leitura confirmou as colunas e assinaturas destas funções no projeto configurado.
 
-Para uma instalação nova, siga as etapas abaixo e aplique as duas migrations em ordem.
+Para uma instalação nova, siga as etapas abaixo e aplique as três migrations em ordem.
 
 ## 1. Criar o projeto Supabase
 
 1. Entre em [supabase.com/dashboard](https://supabase.com/dashboard), crie uma organização/projeto e guarde a senha do banco em um gerenciador de senhas.
-2. Aguarde a criação do projeto. No painel, obtenha a URL do projeto e a chave **publishable** em **Project Settings → API / API Keys**. Obtenha a chave **service_role** na seção de chaves legadas, exclusivamente para o servidor.
+2. Aguarde a criação do projeto. No painel, obtenha a URL do projeto e a chave **publishable** em **Project Settings → API / API Keys**. Crie uma chave **secret** (`sb_secret_...`), exclusivamente para o servidor, e use-a em `SUPABASE_SERVICE_ROLE_KEY`.
 3. Em uma instalação nova, copie [`.env.example`](../.env.example) para `.env.local` na raiz e preencha os três valores. A instalação atual também aceita o arquivo `.env` existente; não o sobrescreva com o exemplo. O bootstrap lê `.env` e depois `.env.local`, dando prioridade ao último. Variáveis já exportadas no terminal têm prioridade sobre os arquivos. Nunca envie arquivos de ambiente com credenciais ao GitHub.
 
 O banco usado pela aplicação é o PostgreSQL do próprio Supabase. O pgAdmin é somente uma ferramenta de administração desse banco; [veja a conexão](pgadmin.md).
@@ -38,7 +53,7 @@ npx supabase db push
 
 `SEU_PROJECT_REF` é o identificador do seu projeto, disponível na URL do painel. Os comandos pedem a autenticação e a senha do banco quando necessário; não passe senhas por argumentos nem as registre em arquivos versionados. Confira o destino apresentado antes de aceitar a aplicação da migration. A CLI mantém o histórico e aplica as migrations pendentes.
 
-**SQL Editor do Supabase**: abra [a migration inicial](../supabase/migrations/20261101000000_initial_schema.sql), copie seu conteúdo completo para **SQL Editor**, confira o projeto e execute. A migration inclui uma transação e deve ser aplicada uma única vez em um banco novo. Em uma instalação nova, execute depois a [migration de endereço e previsão](../supabase/migrations/20261102000100_delivery_details.sql), também uma única vez. Se usar essa alternativa, registre a versão aplicada antes de adotar posteriormente a CLI, seguindo a documentação de [migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair); não reaplique uma migration que já criou as tabelas.
+**SQL Editor do Supabase**: abra [a migration inicial](../supabase/migrations/20261101000000_initial_schema.sql), copie seu conteúdo completo para **SQL Editor**, confira o projeto e execute. A migration inclui uma transação e deve ser aplicada uma única vez em um banco novo. Em uma instalação nova, execute depois a [migration de endereço e previsão](../supabase/migrations/20261102000100_delivery_details.sql), também uma única vez. Execute por último a [migration de sincronização de e-mail](../supabase/migrations/20261102000200_sync_access_email.sql). Se usar essa alternativa, registre a versão aplicada antes de adotar posteriormente a CLI, seguindo a documentação de [migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair); não reaplique uma migration que já criou as tabelas.
 
 A migration cria `establishments`, `profiles` e `orders`, seus índices e restrições, habilita RLS e concede apenas as permissões necessárias. Também cria as funções de criar, editar e cancelar pedidos. Não há uma etapa separada para liberar as tabelas ao público. Não desabilite RLS nem acrescente políticas permissivas para contornar erros.
 
@@ -95,7 +110,7 @@ npm test
 npm run build
 ```
 
-Execute as verificações locais acima. As suítes SQL `security.sql` e `delivery_details.sql`, em `supabase/tests`, verificam as permissões, os cálculos, os endereços e as previsões; veja o [relatório de validação](validacao.md). Execute os 15 cenários de aceite em homologação após provisionar as contas: o build e os testes locais não comprovam login e persistência pela API do Supabase hospedado.
+Execute as verificações locais acima. As suítes SQL `security.sql`, `delivery_details.sql` e `access_email.sql`, em `supabase/tests`, verificam as permissões, os cálculos, os endereços e as previsões; veja o [relatório de validação](validacao.md). Execute os 15 cenários de aceite em homologação após provisionar as contas: o build e os testes locais não comprovam login e persistência pela API do Supabase hospedado.
 
 ## 6. Enviar ao GitHub
 

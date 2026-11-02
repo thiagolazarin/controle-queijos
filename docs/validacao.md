@@ -15,8 +15,8 @@ O GitHub Actions executa os mesmos comandos com `npm ci` no Node.js 24. Eles nã
 
 ## Resultado das verificações executadas
 
-- **Aprovados:** lint, TypeScript, build de produção e os **7 testes unitários**.
-- **Aprovadas:** **56 asserções SQL**, executadas em PostgreSQL 17 local isolado, com resultado `PASS`. O ambiente reproduziu `auth.users`, `auth.uid()` e os papéis do banco necessários para exercitar a migration e as políticas.
+- **Aprovados:** lint, TypeScript, build de produção e os **23 testes Node**.
+- **Aprovadas:** **125 asserções SQL** (56 de segurança, 48 de entregas e 21 de sincronização de e-mail), executadas em PostgreSQL 17 local isolado, com resultado `PASS`. O ambiente reproduziu `auth.users`, `auth.uid()` e os papéis do banco necessários para exercitar a migration e as políticas.
 - Esse ambiente SQL usa uma camada mínima de compatibilidade de autenticação. Ele não executa GoTrue/Supabase Auth nem os demais serviços completos do Supabase; portanto, não comprova login por senha, cookies SSR ou chamadas reais da aplicação à API hospedada.
 ## Integração SQL e RLS
 
@@ -31,7 +31,7 @@ $env:PGDATABASE = 'postgres'
 $env:PGUSER = 'postgres.SEU_PROJECT_REF'
 $env:PGSSLMODE = 'verify-full'
 $env:PGSSLROOTCERT = 'C:/caminho/para/certificado-ca.crt'
-psql --password --set ON_ERROR_STOP=1 --file supabase/tests/security.sql --file supabase/tests/delivery_details.sql
+psql --password --set ON_ERROR_STOP=1 --file supabase/tests/security.sql --file supabase/tests/delivery_details.sql --file supabase/tests/access_email.sql
 ```
 
 O `psql` solicita a senha do banco sem mostrá-la; não a coloque na linha de comando, no arquivo ou em capturas de tela. Não use as credenciais de produção neste roteiro. O teste contém metacomandos `psql` e termina em `ROLLBACK`; execute o arquivo completo com essa ferramenta, após conferir o destino. No Windows, se `psql` não estiver no PATH, use o executável da pasta `bin` da instalação PostgreSQL (por exemplo, `& 'C:/Program Files/PostgreSQL/17/bin/psql.exe'`, seguido dos mesmos argumentos).
@@ -79,8 +79,32 @@ Confira também no ambiente de homologação:
 7. Cancele o pedido: endereço e previsão devem permanecer no histórico, com o cancelamento identificado.
 8. Como cliente A, tente consultar o pedido de B ou alterar uma previsão: o banco deve impedir.
 
+## Revisão geral de 02/11/2026
+
+Foram revisados autenticação SSR, autorização nas ações/páginas, permissões SQL/RLS, regras de pedidos, formulários, navegação, configuração de produção e exposição de credenciais.
+
+Correções realizadas:
+
+- Formulários administrativos preservam os dados após erros; antes, o reset automático do React apagava os campos. Ao concluir com sucesso, limpam as senhas. No celular, o aviso de erro recebe foco e fica visível.
+- Trocas simultâneas de e-mail passam por uma única transação do Auth com sincronização do cadastro por gatilho. A verificação de prontidão bloqueia a alteração antes de tocar o Auth quando a migration estiver ausente. Foram reproduzidos o erro anterior com a action real isolada e o comportamento corrigido com duas conexões PostgreSQL concorrentes.
+- Os filtros administrativos usam a mesma validação de datas do domínio, rejeitando o ano zero antes da consulta ao PostgreSQL.
+
+Evidências locais:
+
+- Lint, TypeScript, 23 testes Node e build de produção aprovados. Quatro testes novos exercitam a action de e-mail real com adaptadores locais, sem API hospedada.
+- 125 asserções SQL versionadas aprovadas com as três migrations, em PostgreSQL 17 isolado. Também passaram 6 verificações de upgrade, 5 verificações entre transações e a disputa de dois escritores de e-mail.
+- Chrome com React real: preservação dos campos em erro, reenvio, edição, limpeza de senha em sucesso, foco do erro no celular e bloqueio de envio duplo aprovados.
+- Produção local: login hidratado, Mostrar senha, cabeçalhos de segurança e cinco rotas protegidas encaminhando visitantes ao login. Na navegação com streaming, o redirecionamento foi validado pelo destino efetivo no navegador.
+- 31 verificações de layout em diferentes larguras, incluindo 360 px, sem rolagem horizontal ou alvos de ação menores que 44 px. Interações de pedido e previsão verificadas em componentes reais com adaptadores locais; esses adaptadores não substituem persistência pela API hospedada.
+
+Dependências: `npm audit --omit=dev` não apontou vulnerabilidades conhecidas. O audit completo apontou 16 pacotes de desenvolvimento afetados pela cadeia de lint, relacionados ao alerta moderado de [minimatch](https://github.com/advisories/GHSA-g3hv-75wg-m249). A proposta automática inclui versões incompatíveis; não foi aplicada atualização forçada nem override entre versões principais. A atualização compatível dessa cadeia permanece pendente. Não houve demonstração de exploração no runtime da aplicação.
+
+O gatilho segue o padrão de [dados de usuários do Supabase](https://supabase.com/docs/guides/auth/managing-user-data), com função de privilégios restritos e caminho de busca vazio. A suíte inclui falha de unicidade revertendo a transação Auth e execução pelo papel mínimo de autenticação.
+
 ## Estado de validação remota
 
-A nova migration não foi aplicada ao Supabase hospedado por esta implementação. Antes do deploy, execute somente [a nova migration](../supabase/migrations/20261102000100_delivery_details.sql) no projeto existente e realize os cenários acima com suas contas de homologação. Não reaplique a migration inicial em um banco já criado.
+Consultas somente de leitura ao Supabase configurado confirmaram resposta administrativa válida, um perfil administrador, as tabelas da aplicação e as colunas/assinaturas RPC de endereço e previsão. Isso confirma a disponibilidade dessas partes do esquema; não comprova criação/login completo nem o aceite dos fluxos pela API com sessões de clientes.
 
-Os testes SQL locais não alteraram os dados remotos. Não registre senhas, tokens, chaves ou dados pessoais nas evidências de teste.
+**Pendência importante:** uma credencial histórica do mesmo projeto, identificada como `service_role`, ainda foi aceita em uma requisição HEAD sem retorno de registros. A chave atual é diferente, mas a antiga continua válida. Nenhum segredo, hash, endereço do projeto ou dado pessoal foi registrado nas evidências. Não foram feitas gravações ou rotações remotas. A revogação precisa ser concluída conforme [implantação](implantacao.md) e o [procedimento oficial](https://supabase.com/docs/guides/security/rotate-leaked-api-keys).
+
+A migration nova desta revisão, [20261102000200_sync_access_email.sql](../supabase/migrations/20261102000200_sync_access_email.sql), não foi aplicada remotamente. Execute-a uma única vez antes de publicar a correção de e-mail. Não reaplique as migrations anteriores. Em homologação, confira troca de e-mail, login com o novo acesso e os cenários de pedidos com usuários separados. Credenciais de produção não foram utilizadas nos testes SQL descartáveis.

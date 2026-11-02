@@ -314,31 +314,25 @@ export async function updateAccessEmail(_previous: ActionState, form: FormData):
     id = uuid(form.get("id"));
     const accessEmail = email(form);
     const admin = createAdminClient();
+    const { data: syncReady, error: syncError } = await admin.rpc("access_email_sync_ready");
+    if (syncError || syncReady !== true) {
+      return { error: "O banco precisa de uma atualização para trocar e-mails com segurança. Peça ao responsável técnico para aplicar as migrations pendentes." };
+    }
     const { data: duplicate, error: duplicateError } = await admin.from("establishments").select("id").eq("access_email", accessEmail).neq("id", id).maybeSingle();
     if (duplicateError) return { error: "Não foi possível verificar o e-mail de acesso. Tente novamente." };
     if (duplicate) return { error: "Este e-mail de acesso já está vinculado a outro estabelecimento." };
     const { data: profile, error: profileError } = await admin.from("profiles").select("id").eq("establishment_id", id).eq("role", "establishment").maybeSingle();
     if (profileError || !profile) return { error: "O estabelecimento ainda não possui acesso. Crie-o primeiro." };
-    const { data: original, error: originalError } = await admin.auth.admin.getUserById(profile.id);
-    if (originalError || !original.user?.email) return { error: "Não foi possível verificar a conta de acesso. Tente novamente." };
+    // The database trigger mirrors this change in the same Auth transaction.
+    // A separate table write or compensating rollback can overwrite another tab.
     const { error: authError } = await admin.auth.admin.updateUserById(profile.id, { email: accessEmail, email_confirm: true });
     if (authError) return { error: "Não foi possível alterar o e-mail. Verifique se ele já está em uso." };
-    const { data: updated, error: updateError } = await admin.from("establishments").update({ access_email: accessEmail }).eq("id", id).select("id").single();
-    if (updateError || !updated) {
-      const { error: rollbackError } = await admin.auth.admin.updateUserById(profile.id, { email: original.user.email, email_confirm: true });
-      if (rollbackError) {
-        refreshEstablishments(id);
-        return { error: "O acesso passou a usar o novo e-mail, mas o cadastro não foi atualizado. Salve novamente o novo e-mail para sincronizar." };
-      }
-      return { error: "Não foi possível salvar a alteração. O e-mail de acesso anterior foi mantido." };
-    }
   } catch (error) {
     return message(error, "Não foi possível alterar o e-mail de acesso.");
   }
   refreshEstablishments(id);
   return { success: "E-mail de acesso atualizado. Use o novo e-mail no próximo login." };
 }
-
 export async function updateAccessPassword(_previous: ActionState, form: FormData): Promise<ActionState> {
   await requireProfile("admin");
   try {

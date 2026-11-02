@@ -4,11 +4,15 @@ Aplicação para estabelecimentos solicitarem queijo fresco e a família acompan
 
 O produto custa **R$ 20,00 por unidade**. O PostgreSQL fixa o preço de cada pedido e calcula o total. Um pedido nasce confirmado e pode ser cancelado pelo administrador, mantendo o histórico. As datas de entrega são `DATE`; regras de data e apresentação usam `America/Sao_Paulo`.
 
+## Revisão geral
+
+A revisão encontrou e corrigiu perda dos campos após erro de formulário e concorrência na troca de e-mail. Para ativar a correção de e-mail, aplique a [migration de sincronização](supabase/migrations/20261102000200_sync_access_email.sql) antes do deploy. Há também uma credencial administrativa antiga no histórico ainda válida: siga a revogação no [guia de implantação](docs/implantacao.md). Resultados e limites no [relatório de validação](docs/validacao.md).
+
 ## Endereço, previsão e resumo
 
 Cada pedido guarda seu endereço de entrega, preenchido inicialmente pelo cadastro do cliente. A família informa a previsão com um período ou horário curto; o cliente consulta tudo em um resumo. Mudanças na data ou no local retiram a previsão anterior.
 
-**Atualização de um sistema já instalado:** aplique somente a [nova migration de entrega](supabase/migrations/20261102000100_delivery_details.sql) antes do deploy. Não reaplique a migration inicial. Veja o [guia de implantação](docs/implantacao.md).
+**Para instalações ainda sem estes recursos:** aplique a [migration de entrega](supabase/migrations/20261102000100_delivery_details.sql) antes do deploy. Não reaplique a migration inicial. Veja o [guia de implantação](docs/implantacao.md).
 ## Recursos
 
 - Login por e-mail e senha e saída segura, com rotas protegidas por perfil.
@@ -35,11 +39,11 @@ Preencha `.env.local` com as credenciais do projeto:
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | URL da API do projeto Supabase. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Chave pública publishable; permite acesso limitado pelas políticas RLS. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Chave `service_role`, exclusiva do servidor e do bootstrap administrativo. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Chave secreta `sb_secret_...`, exclusiva do servidor e do bootstrap administrativo. O nome da variável mantém compatibilidade com a chave legada `service_role`. |
 
 **Nunca coloque a chave `service_role` em uma variável `NEXT_PUBLIC_*`, no navegador ou no Git.** A senha do banco é outra credencial e não entra nessas variáveis.
 
-Antes de usar o sistema, aplique a migration e desabilite novos cadastros públicos no Supabase, conforme o [guia de implantação](docs/implantacao.md). Em seguida:
+Antes de usar o sistema, aplique as migrations em ordem e desabilite novos cadastros públicos no Supabase, conforme o [guia de implantação](docs/implantacao.md). Em seguida:
 
 ```powershell
 npm run admin:bootstrap
