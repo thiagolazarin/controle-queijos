@@ -26,6 +26,10 @@ export default async function History({ searchParams }: { searchParams: Promise<
             <span><Icon name="calendar" /> Entrega em {formatDate(order.delivery_date)}</span>
             <span>Solicitado em {formatDateTime(order.created_at)}</span>
           </div>
+          <div className="order-delivery-info">
+            <p><Icon name="location" /><span className="preserve-lines"><strong>Endereço:</strong> {order.delivery_address || 'Não registrado neste pedido.'}</span></p>
+            <p><Icon name="clock" /><span><strong>Horário:</strong> {order.delivery_estimate || (order.cancelled_at ? 'Não informado' : 'A família informará o horário')}</span></p>
+          </div>
           <div className="order-list-quantity">
             <strong>{order.quantity} {order.quantity === 1 ? 'queijo' : 'queijos'}</strong>
             <strong className="money">{formatMoney(order.total_price)}</strong>

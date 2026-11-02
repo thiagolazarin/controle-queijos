@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import type { ActionState } from "@/lib/action-state";
-import { todayInSaoPaulo, validateOrderInput } from "@/lib/domain";
+import { todayInSaoPaulo, validateDeliveryAddress, validateDeliveryEstimate, validateOrderInput } from "@/lib/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { establishmentCreationError } from "@/lib/establishment-errors";
 
@@ -15,6 +15,18 @@ function uuid(value: FormDataEntryValue | null) {
   return value;
 }
 
+function orderVersion(value: FormDataEntryValue | null) {
+  // Preserve the PostgreSQL timestamp verbatim: Date would discard microseconds.
+  const parts = typeof value === "string" ? /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,6})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value) : null;
+  if (!parts || Number(parts[1]) === 0) throw new Error("Atualize a página antes de informar a previsão deste pedido.");
+  const year = Number(parts[1]);
+  const month = Number(parts[2]);
+  const day = Number(parts[3]);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (day > daysInMonth[month - 1]) throw new Error("Atualize a página antes de informar a previsão deste pedido.");
+  return value as string;
+}
 function text(form: FormData, name: string, label: string, maximum: number, required = false) {
   const entry = form.get(name);
   if (entry !== null && typeof entry !== "string") throw new Error(`${label} inválido.`);
@@ -70,7 +82,10 @@ function refreshEstablishments(id: string) {
 }
 
 function orderFailure(error: { message: string; code?: string }, fallback: string) {
-  const knownMessages = ["quantidade", "data de entrega", "cancelado", "inativo", "não encontrado", "não existe", "permissão"];
+  if (["PGRST202", "PGRST204", "42703"].includes(error.code || "")) {
+    return "O banco precisa de uma atualização para usar endereços e previsões de entrega. Peça ao responsável técnico para aplicar as migrations pendentes.";
+  }
+  const knownMessages = ["quantidade", "data de entrega", "endereço", "previsão", "cancelado", "inativo", "não encontrado", "não existe", "permissão"];
   return knownMessages.some((term) => error.message.toLocaleLowerCase("pt-BR").includes(term)) ? error.message : fallback;
 }
 
@@ -80,11 +95,13 @@ export async function createManualOrder(_previous: ActionState, form: FormData):
   try {
     const establishmentId = uuid(form.get("establishment_id"));
     const input = validateOrderInput({ quantity: form.get("quantity"), deliveryDate: form.get("delivery_date"), notes: form.get("notes") });
+    const deliveryAddress = validateDeliveryAddress(form.get("delivery_address"));
     const { data, error } = await supabase.rpc("create_order", {
       p_establishment_id: establishmentId,
       p_quantity: input.quantity,
       p_delivery_date: input.deliveryDate,
       p_notes: input.notes,
+      p_delivery_address: deliveryAddress,
     });
     if (error || !data) return { error: error ? orderFailure(error, "Não foi possível registrar o pedido. Tente novamente.") : "Não foi possível registrar o pedido." };
     id = data;
@@ -98,20 +115,23 @@ export async function createManualOrder(_previous: ActionState, form: FormData):
 export async function updateOrder(_previous: ActionState, form: FormData): Promise<ActionState> {
   const { supabase } = await requireProfile("admin");
   let id: string;
+  let estimateCleared = false;
   try {
     id = uuid(form.get("order_id"));
-    const { data: original, error: originalError } = await supabase.from("orders").select("delivery_date, cancelled_at").eq("id", id).maybeSingle();
-    if (originalError) return { error: "Não foi possível verificar o pedido. Tente novamente." };
+    const { data: original, error: originalError } = await supabase.from("orders").select("delivery_date, delivery_address, delivery_estimate, cancelled_at").eq("id", id).maybeSingle();
+    if (originalError) return { error: orderFailure(originalError, "Não foi possível verificar o pedido. Tente novamente.") };
     if (!original) return { error: "Pedido não encontrado." };
     if (original.cancelled_at) return { error: "Um pedido cancelado não pode ser alterado." };
     const input = validateOrderInput({ quantity: form.get("quantity"), deliveryDate: form.get("delivery_date"), notes: form.get("notes") }, todayInSaoPaulo(), original.delivery_date);
-    const { error } = await supabase.rpc("update_order", { p_order_id: id, p_quantity: input.quantity, p_delivery_date: input.deliveryDate, p_notes: input.notes });
+    const deliveryAddress = validateDeliveryAddress(form.get("delivery_address"));
+    estimateCleared = Boolean(original.delivery_estimate && (original.delivery_date !== input.deliveryDate || original.delivery_address !== deliveryAddress));
+    const { error } = await supabase.rpc("update_order", { p_order_id: id, p_quantity: input.quantity, p_delivery_date: input.deliveryDate, p_notes: input.notes, p_delivery_address: deliveryAddress });
     if (error) return { error: orderFailure(error, "Não foi possível atualizar o pedido. Tente novamente.") };
   } catch (error) {
     return message(error, "Confira os dados do pedido e tente novamente.");
   }
   refreshOrders(id);
-  return { success: "Pedido atualizado com sucesso." };
+  return { success: estimateCleared ? "Pedido atualizado. Como a data ou o endereço mudou, informe novamente a previsão da entrega." : "Pedido atualizado com sucesso." };
 }
 
 export async function cancelOrder(_previous: ActionState, form: FormData): Promise<ActionState> {
@@ -129,6 +149,27 @@ export async function cancelOrder(_previous: ActionState, form: FormData): Promi
   return { success: "Pedido cancelado. Ele foi preservado no histórico e retirado dos totais." };
 }
 
+export async function updateDeliveryEstimate(_previous: ActionState, form: FormData): Promise<ActionState> {
+  const { supabase } = await requireProfile("admin");
+  let id: string;
+  let estimate: string | null;
+  try {
+    id = uuid(form.get("order_id"));
+    estimate = validateDeliveryEstimate(form.get("delivery_estimate"));
+    const expectedUpdatedAt = orderVersion(form.get("order_version"));
+    const { error } = await supabase.rpc("set_delivery_estimate", { p_order_id: id, p_estimate: estimate, p_expected_updated_at: expectedUpdatedAt });
+    if (error) {
+      if (error.code === "40001" || /pedido(?:\s+foi)?\s+alterado/i.test(error.message)) {
+        return { error: "Este pedido foi alterado. Atualize a página antes de informar a previsão." };
+      }
+      return { error: orderFailure(error, "Não foi possível salvar a previsão. Tente novamente.") };
+    }
+  } catch (error) {
+    return message(error, "Confira a previsão da entrega e tente novamente.");
+  }
+  refreshOrders(id);
+  return { success: estimate ? "Previsão salva. O cliente já pode vê-la no pedido." : "Previsão retirada. A entrega ficou a combinar." };
+}
 export async function createEstablishment(_previous: ActionState, form: FormData): Promise<ActionState> {
   await requireProfile("admin");
   let id: string;

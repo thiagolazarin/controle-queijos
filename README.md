@@ -4,6 +4,11 @@ Aplicação para estabelecimentos solicitarem queijo fresco e a família acompan
 
 O produto custa **R$ 20,00 por unidade**. O PostgreSQL fixa o preço de cada pedido e calcula o total. Um pedido nasce confirmado e pode ser cancelado pelo administrador, mantendo o histórico. As datas de entrega são `DATE`; regras de data e apresentação usam `America/Sao_Paulo`.
 
+## Endereço, previsão e resumo
+
+Cada pedido guarda seu endereço de entrega, preenchido inicialmente pelo cadastro do cliente. A família informa a previsão com um período ou horário curto; o cliente consulta tudo em um resumo. Mudanças na data ou no local retiram a previsão anterior.
+
+**Atualização de um sistema já instalado:** aplique somente a [nova migration de entrega](supabase/migrations/20261102000100_delivery_details.sql) antes do deploy. Não reaplique a migration inicial. Veja o [guia de implantação](docs/implantacao.md).
 ## Recursos
 
 - Login por e-mail e senha e saída segura, com rotas protegidas por perfil.

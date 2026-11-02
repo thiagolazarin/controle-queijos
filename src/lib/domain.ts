@@ -68,3 +68,21 @@ export function summarizeOrders(orders: { quantity: number; total_price: number;
     count: total.count + 1,
   }, { quantity: 0, amount: 0, count: 0 });
 }
+
+export const MAX_DELIVERY_ADDRESS_LENGTH = 500;
+export const MAX_DELIVERY_ESTIMATE_LENGTH = 120;
+
+export function validateDeliveryAddress(value: unknown, { required = true }: { required?: boolean } = {}): string | null {
+  if (value != null && typeof value !== 'string') throw new Error('Informe um endereço de entrega válido.');
+  const address = String(value ?? '').trim();
+  if (required && !address) throw new Error('Informe o endereço de entrega.');
+  if (address.length > MAX_DELIVERY_ADDRESS_LENGTH) throw new Error('O endereço de entrega deve ter no máximo 500 caracteres.');
+  return address || null;
+}
+
+export function validateDeliveryEstimate(value: unknown): string | null {
+  if (value != null && typeof value !== 'string') throw new Error('Informe uma previsão de entrega válida.');
+  const estimate = String(value ?? '').trim().replace(/\s+/g, ' ');
+  if (estimate.length > MAX_DELIVERY_ESTIMATE_LENGTH) throw new Error('A previsão deve ter no máximo 120 caracteres.');
+  return estimate || null;
+}

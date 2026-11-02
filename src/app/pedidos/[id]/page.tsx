@@ -2,8 +2,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Card, PageHeading, StatusBadge, Notice } from '@/components/ui';
 import { Icon } from '@/components/icon';
+import { OrderSummary } from '@/components/order-summary';
 import { requireProfile } from '@/lib/auth';
-import { formatDate, formatDateTime, formatMoney, isUuid } from '@/lib/domain';
+import { formatDateTime, isUuid } from '@/lib/domain';
 
 export default async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   const { supabase } = await requireProfile('establishment');
@@ -18,21 +19,15 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
     <Card className="detail-card stack">
       <div className="product-header">
         <div className="product-icon" aria-hidden="true"><Icon name="cheese" /></div>
-        <div><h2>Queijo fresco</h2><p className="muted">{formatMoney(order.unit_price)} / unidade</p></div>
+        <div><h2>Queijo fresco</h2></div>
         <StatusBadge cancelled={Boolean(order.cancelled_at)} />
       </div>
-      <div className="order-list-quantity">
-        <strong>{order.quantity} {order.quantity === 1 ? 'queijo' : 'queijos'}</strong>
-        <strong className="detail-total">{formatMoney(order.total_price)}</strong>
-      </div>
-      <dl className="detail-grid">
-        <div><dt>Data de entrega</dt><dd>{formatDate(order.delivery_date)}</dd></div>
-        <div><dt>Pedido feito em</dt><dd>{formatDateTime(order.created_at)}</dd></div>
-      </dl>
+      <OrderSummary cancelled={Boolean(order.cancelled_at)} orderNumber={order.order_number} quantity={order.quantity} deliveryDate={order.delivery_date} deliveryAddress={order.delivery_address} deliveryEstimate={order.delivery_estimate} totalPrice={order.total_price} unitPrice={order.unit_price} />
+      <p className="helper">Pedido feito em {formatDateTime(order.created_at)}.</p>
       {order.notes && <div><h3 className="section-heading">Observações</h3><p className="preserve-lines">{order.notes}</p></div>}
       {order.cancelled_at && <Notice kind="error">Cancelado pela administração em {formatDateTime(order.cancelled_at)}.</Notice>}
       <Link className="button button-wide" href={'/pedidos?repetir=' + order.id}>Pedir novamente <Icon name="arrow" /></Link>
-      <p className="helper">Confira a quantidade e a data antes de confirmar o novo pedido.</p>
+      <p className="helper">Confira a quantidade, a data e o endereço do novo pedido antes de confirmar.</p>
     </Card>
   </>;
 }

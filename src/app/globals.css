@@ -233,6 +233,46 @@ th { color: var(--muted); font-weight: 600; }
 .login-caption { margin: 22px 0 0; color: var(--muted); font-size: .92rem; text-align: center; }
 .desktop-only { display: block; }
 .mobile-only { display: none; }
+.order-summary { min-width: 0; padding: 24px; background: #faf5ec; border: 1px solid #e2cfb3; border-radius: 14px; }
+.summary-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.summary-heading h2 { display: inline-flex; align-items: center; gap: 9px; margin: 0; font-size: 1.15rem; }
+.summary-heading .icon { width: 22px; height: 22px; color: var(--brown); }
+.summary-order-number { color: var(--muted); font-size: .92rem; }
+.summary-customer { margin: -4px 0 18px; font-weight: 600; overflow-wrap: anywhere; }
+.summary-amount { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid #e2cfb3; }
+.summary-amount > div { display: flex; flex-direction: column; gap: 5px; }
+.summary-amount > div > span { font-size: .95rem; color: var(--muted); }
+.summary-amount strong { color: var(--brown-dark); font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.summary-items { display: grid; gap: 18px; margin: 0; }
+.summary-row { display: grid; grid-template-columns: minmax(130px, .8fr) minmax(0, 1.2fr); align-items: start; gap: 16px; }
+.summary-row dt { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--muted); font-size: .94rem; }
+.summary-row dt .icon { width: 20px; height: 20px; }
+.summary-row dd { min-width: 0; margin: 0; font-size: 1rem; font-weight: 500; }
+.delivery-address { white-space: pre-line; overflow-wrap: anywhere; }
+.delivery-estimate { color: var(--muted); overflow-wrap: anywhere; }
+.delivery-estimate-informed { color: var(--brown-dark); font-weight: 650; }
+.order-summary-compact { padding: 20px; }
+.order-summary-compact .summary-amount { padding-bottom: 16px; margin-bottom: 16px; }
+.order-summary-compact .summary-amount strong { font-size: 1.3rem; }
+.order-review { min-width: 0; }
+.address-preview { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; min-width: 0; padding: 16px; background: #faf5ec; border: 1px solid var(--line); border-radius: 10px; }
+.address-preview p, .address-preview .delivery-address { flex: 1 1 170px; min-width: 0; margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.address-preview button, .address-preview .button { flex-shrink: 0; }
+.address-editor { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.estimate-form { display: flex; flex-direction: column; gap: 15px; }
+.estimate-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; }
+.estimate-shortcuts > button { flex: 1 1 auto; min-height: 48px; }
+.order-estimate-editor { grid-column: 1 / -1; width: 100%; }
+.order-estimate-editor > summary { min-height: 52px; padding-top: 13px; padding-bottom: 13px; font-size: .96rem; }
+.order-list-main .delivery-address { margin-top: 9px; }
+.order-list-main .delivery-estimate { margin-top: 7px; }
+.order-list-main .delivery-address > .icon, .order-list-main .delivery-estimate > .icon { margin-right: 6px; width: 18px; height: 18px; }
+.order-complete .order-summary { width: 100%; }
+.order-delivery-info { grid-column: 1 / -1; display: grid; gap: 10px; color: var(--muted); font-size: .95rem; }
+.order-delivery-info p { display: flex; align-items: flex-start; gap: 8px; margin: 0; }
+.order-delivery-info .icon { width: 20px; height: 20px; margin-top: 2px; }
+.order-delivery-info span { min-width: 0; overflow-wrap: anywhere; }
+
 @media (max-width: 900px) {
   .order-list[role='list'] { grid-template-columns: 1fr; }
   .day-toolbar { align-items: flex-start; }
@@ -336,6 +376,14 @@ th { color: var(--muted); font-weight: 600; }
   .login-intro { margin-bottom: 24px; }
   .login-help { margin-top: 24px; padding-top: 20px; }
   .login-caption { margin-top: 20px; }
+  .order-summary, .order-summary-compact { padding: 19px 17px; }
+  .summary-heading h2 { font-size: 1.08rem; }
+  .summary-amount strong { font-size: 1.35rem; }
+  .summary-row { grid-template-columns: 1fr; gap: 6px; }
+  .summary-row dd { padding-left: 28px; }
+  .estimate-shortcuts { gap: 8px; }
+  .estimate-shortcuts > button { flex: 1 1 90px; padding-right: 9px; padding-left: 9px; font-size: .92rem; }
+  .address-preview { gap: 12px; }
   .desktop-only { display: none; }
   .mobile-only { display: block; }
 }

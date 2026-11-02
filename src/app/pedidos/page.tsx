@@ -19,8 +19,8 @@ export default async function NewOrder({ searchParams }: { searchParams: Promise
         <div className="product-icon" aria-hidden="true"><Icon name="cheese" /></div>
         <div><h2>Queijo fresco</h2><p className="muted">{formatMoney(UNIT_PRICE)} / unidade</p></div>
       </div>
-      {repeated && <p className="repeat-note">Pedido nº {repeated.order_number} selecionado. Confira a quantidade e a entrega.</p>}
-      <OrderForm key={repeated?.id ?? 'novo'} action={createOrderAction} initial={repeated ? { quantity: repeated.quantity, notes: repeated.notes, deliveryDate: todayInSaoPaulo() } : undefined} />
+      {repeated && <p className="repeat-note">Pedido nº {repeated.order_number} selecionado. Confira a quantidade, a data e o endereço antes de confirmar.</p>}
+      <OrderForm key={repeated?.id ?? 'novo'} action={createOrderAction} defaultDeliveryAddress={establishment!.address} initial={repeated ? { quantity: repeated.quantity, notes: repeated.notes, deliveryDate: todayInSaoPaulo() } : undefined} />
     </Card>
   </>;
 }

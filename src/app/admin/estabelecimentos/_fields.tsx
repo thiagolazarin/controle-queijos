@@ -7,7 +7,7 @@ export function EstablishmentFields({ initial }: { initial?: Establishment }) {
       <div className="field"><label className="label" htmlFor="contact_name">Responsável <span className="muted">(opcional)</span></label><input className="input" id="contact_name" name="contact_name" autoComplete="name" maxLength={150} defaultValue={initial?.contact_name || ""} /></div>
       <div className="field"><label className="label" htmlFor="phone">Telefone <span className="muted">(opcional)</span></label><input className="input" id="phone" name="phone" type="tel" autoComplete="tel" maxLength={30} placeholder="(11) 99999-9999" defaultValue={initial?.phone || ""} /></div>
     </div>
-    <div className="field"><label className="label" htmlFor="address">Endereço <span className="muted">(opcional)</span></label><textarea className="input" id="address" name="address" autoComplete="street-address" maxLength={500} rows={2} defaultValue={initial?.address || ""} /></div>
+    <div className="field"><label className="label" htmlFor="address">Endereço de entrega (padrão) <span className="muted">(opcional)</span></label><textarea className="input" id="address" name="address" autoComplete="street-address" maxLength={500} rows={2} defaultValue={initial?.address || ""} /><span className="helper">Este endereço será sugerido nos próximos pedidos. O cliente pode escolher outro endereço para cada entrega.</span></div>
   </>;
 }
 

@@ -1,4 +1,4 @@
-// Public schema contract for supabase/migrations/20261101000000_initial_schema.sql.
+// Public schema contract for all versioned migrations in supabase/migrations/.
 // Regenerate after schema changes with `supabase gen types typescript --local`.
 export type Json =
   | string
@@ -88,6 +88,8 @@ export type Database = {
           unit_price: number;
           total_price: number;
           delivery_date: string;
+          delivery_address: string | null;
+          delivery_estimate: string | null;
           notes: string | null;
           created_by: string;
           created_at: string;
@@ -103,6 +105,8 @@ export type Database = {
           unit_price?: number;
           total_price?: never;
           delivery_date: string;
+          delivery_address?: string | null;
+          delivery_estimate?: string | null;
           notes?: string | null;
           created_by: string;
           created_at?: string;
@@ -118,6 +122,8 @@ export type Database = {
           unit_price?: number;
           total_price?: never;
           delivery_date?: string;
+          delivery_address?: string | null;
+          delivery_estimate?: string | null;
           notes?: string | null;
           created_by?: string;
           created_at?: string;
@@ -160,6 +166,7 @@ export type Database = {
           p_delivery_date: string;
           p_establishment_id?: string | null;
           p_notes?: string | null;
+          p_delivery_address?: string | null;
         };
         Returns: string;
       };
@@ -169,7 +176,12 @@ export type Database = {
           p_quantity: number;
           p_delivery_date: string;
           p_notes?: string | null;
+          p_delivery_address?: string | null;
         };
+        Returns: undefined;
+      };
+      set_delivery_estimate: {
+        Args: { p_order_id: string; p_estimate: string | null; p_expected_updated_at: string };
         Returns: undefined;
       };
       cancel_order: {

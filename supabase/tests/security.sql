@@ -58,11 +58,11 @@ set local role authenticated;
 select pg_temp.authenticate('a1000000-0000-4000-8000-000000000001');
 select pg_temp.assert_true(public.is_admin(), 'Admin profile is recognized');
 
-insert into public.establishments (id, name, access_email, active)
+insert into public.establishments (id, name, access_email, active, address)
 values
-  ('e1000000-0000-4000-8000-000000000001', 'Padaria A', 'client-a-test@example.invalid', true),
-  ('e1000000-0000-4000-8000-000000000002', 'Mercado B', 'client-b-test@example.invalid', true),
-  ('e1000000-0000-4000-8000-000000000003', 'Restaurante inativo', 'inactive-test@example.invalid', false);
+  ('e1000000-0000-4000-8000-000000000001', 'Padaria A', 'client-a-test@example.invalid', true, 'Rua da Padaria, 10'),
+  ('e1000000-0000-4000-8000-000000000002', 'Mercado B', 'client-b-test@example.invalid', true, 'Rua do Mercado, 20'),
+  ('e1000000-0000-4000-8000-000000000003', 'Restaurante inativo', 'inactive-test@example.invalid', false, 'Rua do Restaurante, 30');
 
 insert into public.profiles (id, role, establishment_id)
 values

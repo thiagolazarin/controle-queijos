@@ -31,7 +31,7 @@ $env:PGDATABASE = 'postgres'
 $env:PGUSER = 'postgres.SEU_PROJECT_REF'
 $env:PGSSLMODE = 'verify-full'
 $env:PGSSLROOTCERT = 'C:/caminho/para/certificado-ca.crt'
-psql --password --set ON_ERROR_STOP=1 --file supabase/tests/security.sql
+psql --password --set ON_ERROR_STOP=1 --file supabase/tests/security.sql --file supabase/tests/delivery_details.sql
 ```
 
 O `psql` solicita a senha do banco sem mostrá-la; não a coloque na linha de comando, no arquivo ou em capturas de tela. Não use as credenciais de produção neste roteiro. O teste contém metacomandos `psql` e termina em `ROLLBACK`; execute o arquivo completo com essa ferramenta, após conferir o destino. No Windows, se `psql` não estiver no PATH, use o executável da pasta `bin` da instalação PostgreSQL (por exemplo, `& 'C:/Program Files/PostgreSQL/17/bin/psql.exe'`, seguido dos mesmos argumentos).
@@ -64,10 +64,23 @@ Verifique também quantidade zero/negativa/fracionária, data passada, dia invá
 
 Tentativas de enviar `unit_price`, `created_by` ou `total_price` arbitrários por escrita direta não podem alterar os valores. O total é uma coluna calculada; a criação aceita apenas os dados previstos pela função. Um usuário comum também não pode promover o próprio perfil. Estes pontos são exercitados pelo teste de integração SQL.
 
+## Verificação de endereço, previsão e resumo
+
+Nesta atualização, os 19 testes locais passaram, incluindo endereço obrigatório, limites sem truncamento e normalização da previsão. A migração foi testada em PostgreSQL 17 descartável: **56 verificações de segurança + 48 verificações de entrega = 104 verificações SQL**, além de 6 verificações de upgrade e 5 verificações entre transações separadas. O teste usa papéis reais do PostgreSQL com uma compatibilidade mínima para `auth.users`/`auth.uid()`; não executa o serviço completo de autenticação Supabase.
+
+Confira também no ambiente de homologação:
+
+1. Cadastre o endereço padrão do cliente e faça um pedido: o local deve vir preenchido.
+2. Altere o endereço apenas daquele pedido e confirme. O resumo salvo deve exibir o local escolhido.
+3. Altere o cadastro do cliente: o endereço do pedido anterior precisa permanecer igual.
+4. Pela família, informe **Pela manhã** ou um horário curto e salve. Confira o resumo e o histórico do cliente.
+5. Selecione **A combinar** e salve: o horário deve voltar a pendente.
+6. Mude data/local de um pedido previsto: a previsão antiga deve desaparecer. Uma aba antiga precisa receber conflito em vez de restaurá-la.
+7. Cancele o pedido: endereço e previsão devem permanecer no histórico, com o cancelamento identificado.
+8. Como cliente A, tente consultar o pedido de B ou alterar uma previsão: o banco deve impedir.
+
 ## Estado de validação remota
 
-Uma consulta somente de leitura ao Supabase hospedado recebeu HTTP 200 nos serviços Auth e nas tabelas da aplicação. Foram encontrados **0 perfis administrativos** e **0 perfis de estabelecimento**. O cadastro público de usuários ainda estava habilitado e deve ser desativado antes de liberar o sistema.
+A nova migration não foi aplicada ao Supabase hospedado por esta implementação. Antes do deploy, execute somente [a nova migration](../supabase/migrations/20261102000100_delivery_details.sql) no projeto existente e realize os cenários acima com suas contas de homologação. Não reaplique a migration inicial em um banco já criado.
 
-Essas consultas confirmam conectividade e existência das tabelas; não substituem o aceite com contas reais. **Login válido, criação de acesso, pedido real e publicação na Vercel continuam pendentes.** Primeiro execute o bootstrap administrativo, conforme o [guia de implantação](implantacao.md), e depois realize os quinze cenários com contas próprias de homologação.
-
-Os testes SQL foram aprovados no banco local isolado, sem alterações de dados no projeto remoto. Não registre senhas, tokens, chaves ou dados pessoais nas evidências de teste.
+Os testes SQL locais não alteraram os dados remotos. Não registre senhas, tokens, chaves ou dados pessoais nas evidências de teste.

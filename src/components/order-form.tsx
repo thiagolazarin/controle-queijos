@@ -3,14 +3,16 @@
 import { useActionState, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { ActionState } from '@/lib/action-state';
-import { addDays, formatMoney, MAX_QUANTITY, todayInSaoPaulo, UNIT_PRICE } from '@/lib/domain';
+import { addDays, formatMoney, isValidDate, MAX_QUANTITY, todayInSaoPaulo, UNIT_PRICE } from '@/lib/domain';
 import { Icon } from '@/components/icon';
+import { OrderSummary } from '@/components/order-summary';
 import { Notice, SubmitButton } from './ui';
 
-export function OrderForm({ action, establishments, initial, submitLabel = 'Confirmar pedido', admin = false }: {
+export function OrderForm({ action, establishments, initial, defaultDeliveryAddress, submitLabel = 'Confirmar pedido', admin = false }: {
   action: (previous: ActionState, form: FormData) => Promise<ActionState>;
-  establishments?: { id: string; name: string; active: boolean }[];
-  initial?: { id?: string; quantity?: number; deliveryDate?: string; notes?: string | null; establishmentId?: string };
+  establishments?: { id: string; name: string; active: boolean; address?: string | null }[];
+  initial?: { id?: string; quantity?: number; deliveryDate?: string; deliveryAddress?: string | null; deliveryEstimate?: string | null; notes?: string | null; establishmentId?: string };
+  defaultDeliveryAddress?: string | null;
   submitLabel?: string;
   admin?: boolean;
 }) {
@@ -19,27 +21,54 @@ export function OrderForm({ action, establishments, initial, submitLabel = 'Conf
   const editing = Boolean(initial?.id);
   const originalDate = admin && editing ? initial?.deliveryDate : undefined;
   const historical = Boolean(originalDate && originalDate < today);
+  const initialEstablishmentId = initial?.establishmentId ?? '';
+  const registeredAddress = defaultDeliveryAddress?.trim() || establishments?.find((establishment) => establishment.id === initialEstablishmentId)?.address?.trim() || '';
+  const startingAddress = admin && editing ? initial?.deliveryAddress?.trim() || registeredAddress : registeredAddress;
   const [quantity, setQuantity] = useState(String(initial?.quantity ?? 1));
   const [deliveryDate, setDeliveryDate] = useState(initial?.deliveryDate ?? today);
+  const [deliveryAddress, setDeliveryAddress] = useState(startingAddress);
+  const [editingAddress, setEditingAddress] = useState(!startingAddress);
   const [notes, setNotes] = useState(initial?.notes ?? '');
-  const [establishmentId, setEstablishmentId] = useState(initial?.establishmentId ?? '');
+  const [establishmentId, setEstablishmentId] = useState(initialEstablishmentId);
   const [state, formAction] = useActionState(action, {});
   const [dismissedSuccessId, setDismissedSuccessId] = useState<string | null>(null);
   const dateInput = useRef<HTMLInputElement>(null);
+  const addressInput = useRef<HTMLTextAreaElement>(null);
   const numericQuantity = Number(quantity);
   const validQuantity = Number.isInteger(numericQuantity) && numericQuantity >= 1 && numericQuantity <= MAX_QUANTITY;
+  const canReview = validQuantity && isValidDate(deliveryDate);
+  const selectedEstablishment = establishments?.find((establishment) => establishment.id === establishmentId);
+  const unchangedDelivery = editing && deliveryDate === initial?.deliveryDate && deliveryAddress.trim() === initial?.deliveryAddress?.trim();
 
   function selectDeliveryDate(value: string) {
     setDeliveryDate(value);
     dateInput.current?.setCustomValidity('');
   }
 
+  function selectEstablishment(value: string) {
+    if (value === establishmentId) return;
+    const address = establishments?.find((establishment) => establishment.id === value)?.address?.trim() || '';
+    setEstablishmentId(value);
+    setDeliveryAddress(address);
+    setEditingAddress(!address);
+    addressInput.current?.setCustomValidity('');
+  }
+
+  function changeAddress() {
+    setEditingAddress(true);
+    requestAnimationFrame(() => addressInput.current?.focus());
+  }
+
   function startAnotherOrder() {
+    const address = defaultDeliveryAddress?.trim() || '';
     setQuantity('1');
     setDeliveryDate(todayInSaoPaulo());
+    setDeliveryAddress(address);
+    setEditingAddress(!address);
     setNotes('');
     setEstablishmentId('');
     dateInput.current?.setCustomValidity('');
+    addressInput.current?.setCustomValidity('');
     setDismissedSuccessId(state.orderId ?? null);
   }
 
@@ -48,6 +77,7 @@ export function OrderForm({ action, establishments, initial, submitLabel = 'Conf
       <span className="confirmation-mark" aria-hidden="true">✓</span>
       <h2 id="order-complete-title">Pedido confirmado!</h2>
       <p>{state.success}</p>
+      {state.receipt && <OrderSummary {...state.receipt} />}
       <Link className="button button-wide" href={'/pedidos/' + state.orderId}>Ver pedido <Icon name="arrow" /></Link>
       <button className="button button-secondary button-wide" type="button" onClick={startAnotherOrder}><Icon name="plus" /> Fazer outro pedido</button>
     </section>;
@@ -57,7 +87,7 @@ export function OrderForm({ action, establishments, initial, submitLabel = 'Conf
     {initial?.id && <input type="hidden" name="order_id" value={initial.id} />}
     {establishments && <div className="field">
       <label htmlFor="establishment_id">Estabelecimento</label>
-      <select className="input" id="establishment_id" name="establishment_id" value={establishmentId} onChange={(event) => setEstablishmentId(event.target.value)} required>
+      <select className="input" id="establishment_id" name="establishment_id" value={establishmentId} onChange={(event) => selectEstablishment(event.target.value)} required>
         <option value="" disabled>Selecione o estabelecimento</option>
         {establishments.filter((establishment) => establishment.active || establishment.id === initial?.establishmentId).map((establishment) => <option key={establishment.id} value={establishment.id}>{establishment.name}{!establishment.active ? ' (inativo)' : ''}</option>)}
       </select>
@@ -89,6 +119,22 @@ export function OrderForm({ action, establishments, initial, submitLabel = 'Conf
       {historical && <span className="helper" id="delivery-date-hint">Mantenha a data original ou escolha hoje ou uma data futura.</span>}
     </section>
 
+    <section className="order-step" aria-labelledby="address-label">
+      <h3 className="step-label" id="address-label"><span className="step-number">3</span> Endereço da entrega</h3>
+      {editingAddress ? <div className="address-editor field">
+        <label className="sr-only" htmlFor="delivery_address">Endereço da entrega</label>
+        <textarea ref={addressInput} className="input" id="delivery_address" name="delivery_address" rows={3} maxLength={500} value={deliveryAddress} onChange={(event) => {
+          setDeliveryAddress(event.target.value);
+          event.currentTarget.setCustomValidity(event.target.value.trim() ? '' : 'Informe o endereço da entrega.');
+        }} placeholder="Rua, número, bairro e cidade" autoComplete="street-address" required />
+        <span className="helper">Informe onde este pedido deve ser entregue.</span>
+      </div> : <div className="address-preview">
+        <input type="hidden" name="delivery_address" value={deliveryAddress} />
+        <p className="preserve-lines">{deliveryAddress}</p>
+        <button className="text-link" type="button" onClick={changeAddress}>Alterar endereço</button>
+      </div>}
+    </section>
+
     <details className="disclosure" open={Boolean(initial?.notes)}>
       <summary>Adicionar observação <span className="muted">(opcional)</span></summary>
       <div className="disclosure-body">
@@ -96,6 +142,10 @@ export function OrderForm({ action, establishments, initial, submitLabel = 'Conf
         <textarea className="input" id="notes" name="notes" rows={3} maxLength={1000} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Escreva uma orientação para o pedido." />
       </div>
     </details>
+
+    {canReview && <section className="order-review" aria-label="Confira o pedido antes de confirmar">
+      <OrderSummary quantity={numericQuantity} deliveryDate={deliveryDate} deliveryAddress={deliveryAddress.trim() || null} deliveryEstimate={unchangedDelivery ? initial?.deliveryEstimate : null} establishmentName={selectedEstablishment?.name} compact />
+    </section>}
 
     <div className="order-confirm">
       {state.error && <Notice kind="error">{state.error}</Notice>}

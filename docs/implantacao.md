@@ -1,12 +1,20 @@
 # Implantação
 
-## Estado atual
+## Atualização: endereço, previsão e resumo
 
-Lint, TypeScript, os 7 testes unitários e o build de produção passaram. As 56 asserções SQL passaram em PostgreSQL 17 local isolado, com compatibilidade mínima para `auth.users`, `auth.uid()` e papéis do banco; esse teste não executa o serviço completo de autenticação Supabase.
+No projeto Supabase existente, aplique **somente a nova migration** [20261102000100_delivery_details.sql](../supabase/migrations/20261102000100_delivery_details.sql) pelo SQL Editor, uma única vez. Não reaplique a migration inicial. A nova migration precisa estar aplicada **antes de publicar esta versão na Vercel**.
 
-O Supabase hospedado respondeu às consultas somente de leitura de Auth e das tabelas da aplicação. As tabelas já existem, mas ainda não há perfis de administrador nem de estabelecimento. O cadastro público está habilitado e precisa ser desativado. Login válido, pedido real e publicação ainda precisam ser verificados após criar o administrador.
+Depois do SQL, publique o código atualizado. Na administração, preencha o endereço de entrega padrão no cadastro de cada cliente. O próximo pedido já virá com esse endereço, e o cliente poderá ajustar o local apenas para aquela entrega.
 
-As configurações restauradas estão no commit `038a791`, sincronizado com o GitHub. Não é necessário reinicializar o repositório nem refazer o commit do código para importar esse estado na Vercel. As novas alterações desta documentação podem ser commitadas quando desejar.
+O endereço fica gravado no pedido. Alterar o cadastro do cliente não muda pedidos já registrados. Pedidos antigos ativos com entrega para hoje ou uma data futura recebem o endereço atual quando ele é conhecido e válido; históricos cancelados e endereços desconhecidos são preservados. Os registros antigos sem endereço exibem essa ausência e podem ser completados pela administração quando o pedido ainda estiver ativo.
+
+A família informa a previsão no próprio painel de entregas ou nos detalhes do pedido: escolha um período, como **Pela manhã**, ou escreva algo como **entre 9h e 11h**, e clique em **Salvar previsão**. O cliente verá a informação no resumo e no histórico. **A combinar** retira a previsão após salvar. Alterar a data ou o endereço do pedido limpa a previsão anterior, para que a família possa informar uma nova. Uma tela antiga que tente salvar após uma alteração recebe um aviso para atualizar a página.
+
+O resumo reúne quantidade, valor, data, endereço e previsão. Antes da confirmação ele permite conferir os dados; depois de salvar, os detalhes usam os valores persistidos no banco.
+
+Verificações desta atualização: 19 testes locais, TypeScript e lint; a migration passou em PostgreSQL 17 isolado com 104 verificações SQL, 6 verificações de upgrade e 5 verificações adicionais entre transações. Esses testes não substituem o aceite no Supabase hospedado. A nova migration não foi aplicada remotamente por esta implementação.
+
+Para uma instalação nova, siga as etapas abaixo e aplique as duas migrations em ordem.
 
 ## 1. Criar o projeto Supabase
 
@@ -18,7 +26,7 @@ O banco usado pela aplicação é o PostgreSQL do próprio Supabase. O pgAdmin �
 
 ## 2. Aplicar as migrations
 
-As tabelas já foram encontradas no projeto hospedado atual. **Não execute novamente a migration inicial nesse banco.** As opções abaixo são para um projeto novo; para atualizações de um projeto existente, aplique somente migrations novas e pendentes, após conferir o histórico.
+Em um projeto existente, **não execute novamente a migration inicial**. As opções abaixo são para um projeto novo; para atualizações de um projeto existente, aplique somente migrations novas e pendentes, após conferir o histórico.
 
 **Supabase CLI**, a partir da raiz do repositório:
 
@@ -30,7 +38,7 @@ npx supabase db push
 
 `SEU_PROJECT_REF` é o identificador do seu projeto, disponível na URL do painel. Os comandos pedem a autenticação e a senha do banco quando necessário; não passe senhas por argumentos nem as registre em arquivos versionados. Confira o destino apresentado antes de aceitar a aplicação da migration. A CLI mantém o histórico e aplica as migrations pendentes.
 
-**SQL Editor do Supabase**: abra [a migration inicial](../supabase/migrations/20261101000000_initial_schema.sql), copie seu conteúdo completo para **SQL Editor**, confira o projeto e execute. A migration inclui uma transação e deve ser aplicada uma única vez em um banco novo. Se usar essa alternativa, registre a versão aplicada antes de adotar posteriormente a CLI, seguindo a documentação de [migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair); não reaplique uma migration que já criou as tabelas.
+**SQL Editor do Supabase**: abra [a migration inicial](../supabase/migrations/20261101000000_initial_schema.sql), copie seu conteúdo completo para **SQL Editor**, confira o projeto e execute. A migration inclui uma transação e deve ser aplicada uma única vez em um banco novo. Em uma instalação nova, execute depois a [migration de endereço e previsão](../supabase/migrations/20261102000100_delivery_details.sql), também uma única vez. Se usar essa alternativa, registre a versão aplicada antes de adotar posteriormente a CLI, seguindo a documentação de [migration repair](https://supabase.com/docs/reference/cli/supabase-migration-repair); não reaplique uma migration que já criou as tabelas.
 
 A migration cria `establishments`, `profiles` e `orders`, seus índices e restrições, habilita RLS e concede apenas as permissões necessárias. Também cria as funções de criar, editar e cancelar pedidos. Não há uma etapa separada para liberar as tabelas ao público. Não desabilite RLS nem acrescente políticas permissivas para contornar erros.
 
@@ -52,7 +60,7 @@ As três tabelas devem retornar `rowsecurity = true`. Pedidos não aceitam escri
 
 ## 3. Configurar autenticação
 
-A consulta atual identificou cadastro público habilitado. **Esta configuração precisa ser corrigida antes de liberar o uso.** Em **Authentication → Sign In / Providers**, mantenha e-mail/senha habilitado e desabilite **Allow new users to sign up**. Desabilite provedores externos e login anônimo se estiverem habilitados. Não disponibilize cadastro público. A configuração local em [`supabase/config.toml`](../supabase/config.toml) também desabilita cadastros; ela não altera automaticamente as opções de um projeto hospedado já criado.
+Antes de liberar o uso, confira a configuração de autenticação do projeto. Em **Authentication → Sign In / Providers**, mantenha e-mail/senha habilitado e desabilite **Allow new users to sign up**. Desabilite provedores externos e login anônimo se estiverem habilitados. Não disponibilize cadastro público. A configuração local em [`supabase/config.toml`](../supabase/config.toml) também desabilita cadastros; ela não altera automaticamente as opções de um projeto hospedado já criado.
 
 Em **Authentication → URL Configuration**:
 
@@ -64,7 +72,7 @@ As contas são criadas pelo servidor com e-mail confirmado, após a verificaçã
 
 ## 4. Provisionar o administrador e o primeiro cliente
 
-A consulta atual encontrou zero administradores. Com o banco preparado e as variáveis preenchidas em `.env` ou `.env.local`, execute no PowerShell da raiz do projeto:
+Se ainda não existir um administrador, com o banco preparado e as variáveis preenchidas em `.env` ou `.env.local`, execute no PowerShell da raiz do projeto:
 
 ```powershell
 npm.cmd run admin:bootstrap
@@ -74,7 +82,7 @@ Execute em terminal interativo. O comando carrega primeiro `.env` e depois `.env
 
 Se houver falha ao inserir o perfil, o script tenta remover a conta recém-criada. Se o próprio rollback falhar, confira **Authentication → Users** e `public.profiles` no projeto correto. Remova somente a conta recém-criada que esteja sem perfil antes de tentar de novo; uma falha de conexão pode ocultar uma gravação concluída. Nenhuma senha é salva em tabela de aplicação.
 
-Inicie `npm run dev`, entre no sistema e abra **Estabelecimentos → Cadastrar estabelecimento**. Preencha nome, responsável, telefone, endereço, e-mail de acesso e senha. Guarde a senha fora do código e entregue-a ao responsável. A desativação do estabelecimento preserva seus pedidos e impede novas operações; a reativação devolve o acesso.
+Inicie `npm run dev`, entre no sistema e abra **Clientes → Cadastrar cliente**. Preencha nome, responsável, telefone, endereço, e-mail de acesso e senha. Guarde a senha fora do código e entregue-a ao responsável. A desativação do estabelecimento preserva seus pedidos e impede novas operações; a reativação devolve o acesso.
 
 O bootstrap não é uma rota da aplicação e não concede permissões a usuários anônimos. Proteja a chave de servidor: ela ignora RLS. Se vazar, revogue/rotacione a chave no Supabase e atualize o ambiente correspondente.
 
@@ -87,11 +95,11 @@ npm test
 npm run build
 ```
 
-As verificações locais acima já passaram. O [relatório de validação](validacao.md) registra também o resultado das 56 asserções SQL locais. Execute os 15 cenários de aceite em homologação após provisionar as contas: o build e os testes locais não comprovam login e persistência pela API do Supabase hospedado.
+Execute as verificações locais acima. As suítes SQL `security.sql` e `delivery_details.sql`, em `supabase/tests`, verificam as permissões, os cálculos, os endereços e as previsões; veja o [relatório de validação](validacao.md). Execute os 15 cenários de aceite em homologação após provisionar as contas: o build e os testes locais não comprovam login e persistência pela API do Supabase hospedado.
 
 ## 6. Enviar ao GitHub
 
-O repositório atual já está sincronizado com o GitHub no commit `038a791`. Para ele, pule a inicialização abaixo. As mudanças desta documentação podem ser revisadas e commitadas quando desejar. Somente para uma instalação sem repositório, crie um no GitHub e execute:
+O repositório do projeto já está criado. Revise e envie as alterações ao GitHub para publicar a versão atualizada. Somente para uma instalação sem repositório, crie um no GitHub e execute:
 
 ```powershell
 git init
@@ -123,4 +131,4 @@ Se uma criação de acesso falhar, confira se o estabelecimento ficou inativo e 
 
 Mantenha as migrations no Git e nunca edite uma migration já aplicada: crie a próxima versão. Antes de alterações de banco, confira backup/restauração disponíveis no plano Supabase e valide primeiro em homologação. Cancelamentos preservam os pedidos; não apague registros de pedidos, estabelecimentos ou perfis durante o uso normal.
 
-Uma entrega só está publicada após verificar o deploy e o Supabase configurado. No estado atual, faltam: rotacionar credenciais privilegiadas anteriormente versionadas, desabilitar cadastro público, provisionar o primeiro administrador, configurar/importar o projeto na Vercel e executar o aceite com login e pedido real no endereço publicado. A existência das tabelas e o acesso somente de leitura ao Supabase já foram verificados.
+Uma versão só está publicada após verificar o deploy e o Supabase configurado. Para esta atualização, aplique a nova migration antes do deploy e confira no site: criação com endereço, resumo salvo, previsão informada pela família e isolamento entre clientes.

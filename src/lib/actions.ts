@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile } from '@/lib/auth';
-import { validateOrderInput } from '@/lib/domain';
+import { validateDeliveryAddress, validateOrderInput } from '@/lib/domain';
 import type { ActionState } from '@/lib/action-state';
 
 export async function loginAction(_prev: ActionState, form: FormData): Promise<ActionState> {
@@ -26,16 +26,40 @@ export async function logoutAction() {
 }
 
 export async function createOrderAction(_prev: ActionState, form: FormData): Promise<ActionState> {
-  const { supabase } = await requireProfile('establishment');
+  const { supabase, establishment } = await requireProfile('establishment');
   let input;
-  try { input = validateOrderInput({ quantity: form.get('quantity'), deliveryDate: form.get('delivery_date'), notes: form.get('notes') }); }
-  catch (error) { return { error: error instanceof Error ? error.message : 'Confira os dados do pedido.' }; }
+  let deliveryAddress: string | null;
+  try {
+    input = validateOrderInput({ quantity: form.get('quantity'), deliveryDate: form.get('delivery_date'), notes: form.get('notes') });
+    deliveryAddress = validateDeliveryAddress(form.get('delivery_address') ?? establishment?.address);
+  } catch (error) { return { error: error instanceof Error ? error.message : 'Confira os dados do pedido.' }; }
   const { data: id, error } = await supabase.rpc('create_order', {
-    p_quantity: input.quantity, p_delivery_date: input.deliveryDate, p_notes: input.notes,
+    p_quantity: input.quantity,
+    p_delivery_date: input.deliveryDate,
+    p_notes: input.notes,
+    p_delivery_address: deliveryAddress,
   });
-  if (error || !id) return { error: 'Não foi possível registrar o pedido. Confira os dados e se o estabelecimento está ativo, e tente novamente.' };
-  const { data: order } = await supabase.from('orders').select('order_number').eq('id', id).single();
+  if (error || !id) {
+    if (error && ['PGRST202', 'PGRST204', '42703'].includes(error.code)) {
+      return { error: 'A atualização do sistema precisa ser concluída pela administração antes de receber novos pedidos.' };
+    }
+    return { error: 'Não foi possível registrar o pedido. Confira os dados e se o estabelecimento está ativo, e tente novamente.' };
+  }
+  const { data: order } = await supabase.from('orders')
+    .select('order_number, quantity, unit_price, total_price, delivery_date, delivery_address, delivery_estimate').eq('id', id).single();
   revalidatePath('/pedidos'); revalidatePath('/pedidos/historico');
   revalidatePath('/admin'); revalidatePath('/admin/pedidos');
-  return { success: `Pedido ${order ? `nº ${order.order_number} ` : ''}confirmado com sucesso!`, orderId: id };
+  return {
+    success: `Pedido ${order ? `nº ${order.order_number} ` : ''}confirmado com sucesso!`,
+    orderId: id,
+    ...(order ? { receipt: {
+      orderNumber: order.order_number,
+      quantity: order.quantity,
+      unitPrice: Number(order.unit_price),
+      totalPrice: Number(order.total_price),
+      deliveryDate: order.delivery_date,
+      deliveryAddress: order.delivery_address,
+      deliveryEstimate: order.delivery_estimate,
+    } } : {}),
+  };
 }

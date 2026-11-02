@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
 import { Icon } from "@/components/icon";
 import { OrderForm } from "@/components/order-form";
+import { OrderSummary } from "@/components/order-summary";
+import { DeliveryEstimateForm } from "@/components/delivery-estimate-form";
 import { Card, Notice, PageHeading, StatusBadge, SubmitButton } from "@/components/ui";
 import { cancelOrder, updateOrder } from "@/lib/admin-actions";
 import { requireProfile } from "@/lib/auth";
-import { formatDate, formatDateTime, formatMoney } from "@/lib/domain";
+import { formatDateTime, formatMoney } from "@/lib/domain";
 import { isUuid } from "../../_lib/data";
 
 export default async function OrderDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string }> }) {
@@ -17,7 +19,7 @@ export default async function OrderDetail({ params, searchParams }: { params: Pr
   if (error) throw new Error("Não foi possível carregar o pedido.");
   if (!order) notFound();
   const [establishmentResult, authorsResult, query] = await Promise.all([
-    supabase.from("establishments").select("id, name").eq("id", order.establishment_id).single(),
+    supabase.from("establishments").select("id, name, address").eq("id", order.establishment_id).single(),
     supabase.from("profiles").select("id, full_name, role").in("id", [order.created_by, order.cancelled_by].filter((value): value is string => Boolean(value))),
     searchParams,
   ]);
@@ -32,12 +34,8 @@ export default async function OrderDetail({ params, searchParams }: { params: Pr
     {query.created === "1" && <Notice kind="success">Pedido #{order.order_number} confirmado.</Notice>}
 
     <Card className="stack">
-      <div><p className="stat-label">Cliente</p><h2><Link className="text-link" href={`/admin/estabelecimentos/${order.establishment_id}`}>{establishment?.name}</Link></h2></div>
-      <dl className="detail-grid">
-        <div><dt>Quantidade</dt><dd className="detail-total">{order.quantity} queijos</dd></div>
-        <div><dt>Data da entrega</dt><dd>{formatDate(order.delivery_date)}</dd></div>
-        <div><dt>Valor total</dt><dd>{formatMoney(Number(order.total_price))}</dd></div>
-      </dl>
+      <OrderSummary cancelled={Boolean(order.cancelled_at)} quantity={order.quantity} deliveryDate={order.delivery_date} deliveryAddress={order.delivery_address} deliveryEstimate={order.delivery_estimate} totalPrice={Number(order.total_price)} unitPrice={Number(order.unit_price)} orderNumber={order.order_number} establishmentName={establishment?.name} />
+      <Link className="text-link" href={`/admin/estabelecimentos/${order.establishment_id}`}>Ver cadastro do cliente <Icon name="arrow" /></Link>
       {order.notes && <div><h3>Observações</h3><p className="preserve-lines">{order.notes}</p></div>}
       <details className="disclosure">
         <summary>Mais informações</summary>
@@ -56,8 +54,12 @@ export default async function OrderDetail({ params, searchParams }: { params: Pr
       <div><Link className="button" href="/admin/pedidos?novo=1#novo-pedido"><Icon name="plus" />Novo pedido</Link></div>
     </Card> : <>
       <Card className="stack">
+        <div className="section-heading"><Icon name="clock" /><h2>Previsão da entrega</h2></div>
+        <DeliveryEstimateForm key={`${order.id}:${order.updated_at}`} orderId={order.id} updatedAt={order.updated_at} initialEstimate={order.delivery_estimate} />
+      </Card>
+      <Card className="stack">
         <div className="section-heading"><Icon name="orders" /><h2>Alterar pedido</h2></div>
-        <OrderForm action={updateOrder} initial={{ id: order.id, quantity: order.quantity, deliveryDate: order.delivery_date, notes: order.notes || "" }} submitLabel="Salvar alterações" admin />
+        <OrderForm action={updateOrder} initial={{ id: order.id, quantity: order.quantity, deliveryDate: order.delivery_date, notes: order.notes || "", deliveryAddress: order.delivery_address, deliveryEstimate: order.delivery_estimate }} defaultDeliveryAddress={establishment?.address} submitLabel="Salvar alterações" admin />
       </Card>
       <Card className="compact-card">
         <details className="disclosure">
