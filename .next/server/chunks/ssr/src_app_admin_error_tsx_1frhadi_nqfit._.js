@@ -1,3 +1,0 @@
-module.exports=[74167,a=>{"use strict";var b=a.i(87924);a.s(["default",0,function({reset:a}){return(0,b.jsxs)("section",{className:"card stack",role:"alert",children:[(0,b.jsx)("h1",{className:"text-xl font-semibold",children:"Não foi possível carregar esta página"}),(0,b.jsx)("p",{className:"muted",children:"Verifique sua conexão e tente novamente. Se o problema continuar, confira a configuração do Supabase."}),(0,b.jsx)("div",{children:(0,b.jsx)("button",{className:"button",onClick:a,children:"Tentar novamente"})})]})}])}];
-
-//# sourceMappingURL=src_app_admin_error_tsx_1frhadi_nqfit._.js.map

@@ -1,1 +1,16 @@
-node_modules
+# Dependências
+node_modules/
+
+# Build do Next.js
+.next/
+out/
+
+# Variáveis de ambiente
+.env*
+!.env.example
+
+# Vercel
+.vercel/
+
+# Arquivos temporários
+*.tsbuildinfo
