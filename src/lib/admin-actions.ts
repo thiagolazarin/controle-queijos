@@ -6,6 +6,7 @@ import { requireProfile } from "@/lib/auth";
 import type { ActionState } from "@/lib/action-state";
 import { todayInSaoPaulo, validateOrderInput } from "@/lib/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { establishmentCreationError } from "@/lib/establishment-errors";
 
 function uuid(value: FormDataEntryValue | null) {
   if (typeof value !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
@@ -136,9 +137,12 @@ export async function createEstablishment(_previous: ActionState, form: FormData
     const accessEmail = email(form);
     const accessPassword = password(form);
     const admin = createAdminClient();
-    const { data: establishment, error: insertError } = await admin.from("establishments")
+    const { data: establishment, error: insertError, status: insertStatus } = await admin.from("establishments")
       .insert({ ...values, access_email: accessEmail, active: false }).select("id").single();
-    if (insertError || !establishment) return { error: insertError?.code === "23505" ? "Este e-mail de acesso já está em uso." : "Não foi possível cadastrar o estabelecimento. Tente novamente." };
+    if (insertError || !establishment) {
+      console.error({ operation: 'create_establishment.insert', code: insertError?.code || 'missing_result', status: insertStatus });
+      return { error: establishmentCreationError(insertError, insertStatus) };
+    }
     id = establishment.id;
     const { data: account, error: accountError } = await admin.auth.admin.createUser({
       email: accessEmail, password: accessPassword, email_confirm: true,

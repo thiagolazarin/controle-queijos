@@ -13,6 +13,11 @@ npm run build
 
 O GitHub Actions executa os mesmos comandos com `npm ci` no Node.js 24. Eles não precisam de chaves Supabase e não substituem os testes de integração em um banco configurado.
 
+## Resultado das verificações executadas
+
+- **Aprovados:** lint, TypeScript, build de produção e os **7 testes unitários**.
+- **Aprovadas:** **56 asserções SQL**, executadas em PostgreSQL 17 local isolado, com resultado `PASS`. O ambiente reproduziu `auth.users`, `auth.uid()` e os papéis do banco necessários para exercitar a migration e as políticas.
+- Esse ambiente SQL usa uma camada mínima de compatibilidade de autenticação. Ele não executa GoTrue/Supabase Auth nem os demais serviços completos do Supabase; portanto, não comprova login por senha, cookies SSR ou chamadas reais da aplicação à API hospedada.
 ## Integração SQL e RLS
 
 Use **somente um projeto separado de homologação**, com a migration já aplicada e sem dados reais. O arquivo [`supabase/tests/security.sql`](../supabase/tests/security.sql) usa privilégios administrativos para preparar suas contas de teste e muda para o papel `authenticated` para exercer as políticas e funções. Uma conexão `postgres` sem essa mudança de papel ignora RLS e não é suficiente para testar isolamento.
@@ -61,4 +66,8 @@ Tentativas de enviar `unit_price`, `created_by` ou `total_price` arbitrários po
 
 ## Estado de validação remota
 
-Os comandos locais validam código e build. Sem credenciais e acesso ao projeto Supabase, os cenários de login real, persistência remota, integração SQL e publicação continuam **pendentes de execução**. Preencha os resultados no ambiente de destino antes de liberar o uso pela família e pelos estabelecimentos. Não grave senhas, tokens, chaves ou dados pessoais nas evidências de teste.
+Uma consulta somente de leitura ao Supabase hospedado recebeu HTTP 200 nos serviços Auth e nas tabelas da aplicação. Foram encontrados **0 perfis administrativos** e **0 perfis de estabelecimento**. O cadastro público de usuários ainda estava habilitado e deve ser desativado antes de liberar o sistema.
+
+Essas consultas confirmam conectividade e existência das tabelas; não substituem o aceite com contas reais. **Login válido, criação de acesso, pedido real e publicação na Vercel continuam pendentes.** Primeiro execute o bootstrap administrativo, conforme o [guia de implantação](implantacao.md), e depois realize os quinze cenários com contas próprias de homologação.
+
+Os testes SQL foram aprovados no banco local isolado, sem alterações de dados no projeto remoto. Não registre senhas, tokens, chaves ou dados pessoais nas evidências de teste.

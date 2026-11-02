@@ -1,16 +1,24 @@
 # Implantação
 
+## Estado atual
+
+Lint, TypeScript, os 7 testes unitários e o build de produção passaram. As 56 asserções SQL passaram em PostgreSQL 17 local isolado, com compatibilidade mínima para `auth.users`, `auth.uid()` e papéis do banco; esse teste não executa o serviço completo de autenticação Supabase.
+
+O Supabase hospedado respondeu às consultas somente de leitura de Auth e das tabelas da aplicação. As tabelas já existem, mas ainda não há perfis de administrador nem de estabelecimento. O cadastro público está habilitado e precisa ser desativado. Login válido, pedido real e publicação ainda precisam ser verificados após criar o administrador.
+
+As configurações restauradas estão no commit `038a791`, sincronizado com o GitHub. Não é necessário reinicializar o repositório nem refazer o commit do código para importar esse estado na Vercel. As novas alterações desta documentação podem ser commitadas quando desejar.
+
 ## 1. Criar o projeto Supabase
 
 1. Entre em [supabase.com/dashboard](https://supabase.com/dashboard), crie uma organização/projeto e guarde a senha do banco em um gerenciador de senhas.
 2. Aguarde a criação do projeto. No painel, obtenha a URL do projeto e a chave **publishable** em **Project Settings → API / API Keys**. Obtenha a chave **service_role** na seção de chaves legadas, exclusivamente para o servidor.
-3. Copie [`.env.example`](../.env.example) para `.env.local` na raiz e preencha os três valores. Não inclua aspas adicionais se copiar os valores diretamente do painel. Nunca envie esse arquivo ao GitHub.
+3. Em uma instalação nova, copie [`.env.example`](../.env.example) para `.env.local` na raiz e preencha os três valores. A instalação atual também aceita o arquivo `.env` existente; não o sobrescreva com o exemplo. O bootstrap lê `.env` e depois `.env.local`, dando prioridade ao último. Variáveis já exportadas no terminal têm prioridade sobre os arquivos. Nunca envie arquivos de ambiente com credenciais ao GitHub.
 
 O banco usado pela aplicação é o PostgreSQL do próprio Supabase. O pgAdmin é somente uma ferramenta de administração desse banco; [veja a conexão](pgadmin.md).
 
 ## 2. Aplicar as migrations
 
-Em um projeto novo, escolha **uma** das opções.
+As tabelas já foram encontradas no projeto hospedado atual. **Não execute novamente a migration inicial nesse banco.** As opções abaixo são para um projeto novo; para atualizações de um projeto existente, aplique somente migrations novas e pendentes, após conferir o histórico.
 
 **Supabase CLI**, a partir da raiz do repositório:
 
@@ -44,7 +52,7 @@ As três tabelas devem retornar `rowsecurity = true`. Pedidos não aceitam escri
 
 ## 3. Configurar autenticação
 
-Em **Authentication → Sign In / Providers**, mantenha e-mail/senha habilitado e desabilite **Allow new users to sign up**. Desabilite provedores externos e login anônimo se estiverem habilitados. Não disponibilize cadastro público. A configuração local em [`supabase/config.toml`](../supabase/config.toml) também desabilita cadastros; ela não altera automaticamente as opções de um projeto hospedado já criado.
+A consulta atual identificou cadastro público habilitado. **Esta configuração precisa ser corrigida antes de liberar o uso.** Em **Authentication → Sign In / Providers**, mantenha e-mail/senha habilitado e desabilite **Allow new users to sign up**. Desabilite provedores externos e login anônimo se estiverem habilitados. Não disponibilize cadastro público. A configuração local em [`supabase/config.toml`](../supabase/config.toml) também desabilita cadastros; ela não altera automaticamente as opções de um projeto hospedado já criado.
 
 Em **Authentication → URL Configuration**:
 
@@ -56,13 +64,13 @@ As contas são criadas pelo servidor com e-mail confirmado, após a verificaçã
 
 ## 4. Provisionar o administrador e o primeiro cliente
 
-Com as migrations aplicadas e `.env.local` preenchido:
+A consulta atual encontrou zero administradores. Com o banco preparado e as variáveis preenchidas em `.env` ou `.env.local`, execute no PowerShell da raiz do projeto:
 
 ```powershell
-npm run admin:bootstrap
+npm.cmd run admin:bootstrap
 ```
 
-Execute em terminal interativo. Informe um e-mail válido, um nome e uma senha exclusiva de 12 a 128 caracteres. A entrada de senha fica oculta. O script não redefine uma conta existente e recusa provisionar outro administrador quando já existe um. Não execute instâncias simultâneas. Se já houver uma conta com esse e-mail sem perfil, resolva essa conta no painel Auth antes de repetir; o script não promove contas arbitrárias.
+Execute em terminal interativo. O comando carrega primeiro `.env` e depois `.env.local`, caso existam; `.env.local` prevalece para valores repetidos. Informe um e-mail válido, um nome e uma senha exclusiva de 12 a 128 caracteres. A entrada de senha fica oculta. O script não redefine uma conta existente e recusa provisionar outro administrador quando já existe um. Não execute instâncias simultâneas. Se já houver uma conta com esse e-mail sem perfil, resolva essa conta no painel Auth antes de repetir; o script não promove contas arbitrárias.
 
 Se houver falha ao inserir o perfil, o script tenta remover a conta recém-criada. Se o próprio rollback falhar, confira **Authentication → Users** e `public.profiles` no projeto correto. Remova somente a conta recém-criada que esteja sem perfil antes de tentar de novo; uma falha de conexão pode ocultar uma gravação concluída. Nenhuma senha é salva em tabela de aplicação.
 
@@ -79,11 +87,11 @@ npm test
 npm run build
 ```
 
-Execute também os [testes de integração e os 15 cenários de aceite](validacao.md) em um projeto separado de homologação. Os testes locais e o GitHub Actions não comprovam login, RLS e persistência no seu Supabase de produção.
+As verificações locais acima já passaram. O [relatório de validação](validacao.md) registra também o resultado das 56 asserções SQL locais. Execute os 15 cenários de aceite em homologação após provisionar as contas: o build e os testes locais não comprovam login e persistência pela API do Supabase hospedado.
 
 ## 6. Enviar ao GitHub
 
-Crie um repositório privado ou público no GitHub conforme a sua preferência. Na raiz local, se ainda não existir um repositório:
+O repositório atual já está sincronizado com o GitHub no commit `038a791`. Para ele, pule a inicialização abaixo. As mudanças desta documentação podem ser revisadas e commitadas quando desejar. Somente para uma instalação sem repositório, crie um no GitHub e execute:
 
 ```powershell
 git init
@@ -95,7 +103,7 @@ git remote add origin URL_DO_SEU_REPOSITORIO
 git push -u origin main
 ```
 
-Antes do commit, confira que `.env.local`, chaves, senhas, `.next` e `node_modules` não estão entre os arquivos preparados. Se o repositório já existir, mantenha seu histórico e remote. O workflow [CI](../.github/workflows/ci.yml) executa instalação reproduzível, lint, tipos, testes e build no Node.js 24. O workflow não recebe credenciais de produção.
+Um arquivo de ambiente com credenciais já esteve versionado. A remoção do índice preserva o arquivo local, mas **não apaga o histórico do Git**. Antes de publicar, rotacione as credenciais privilegiadas anteriormente versionadas e atualize os ambientes local e Vercel. Não basta excluir o arquivo do último commit. Antes de novos commits, confira que arquivos de ambiente com credenciais, chaves, senhas, `.next` e `node_modules` não estão entre os arquivos preparados. Se o repositório já existir, mantenha seu histórico e remote. O workflow [CI](../.github/workflows/ci.yml) executa instalação reproduzível, lint, tipos, testes e build no Node.js 24. O workflow não recebe credenciais de produção.
 
 ## 7. Publicar na Vercel
 
@@ -103,7 +111,7 @@ Antes do commit, confira que `.env.local`, chaves, senhas, `.next` e `node_modul
 2. Mantenha o framework **Next.js**, a raiz do projeto e o build padrão `npm run build`. Selecione Node.js **24.x**.
 3. Em **Settings → Environment Variables**, configure as três variáveis de [`.env.example`](../.env.example). Use as credenciais do projeto Supabase de produção somente no ambiente **Production**. Para **Preview**, use um projeto de homologação separado.
 4. Marque a chave de servidor como sensível quando a opção estiver disponível. Seu nome deve continuar `SUPABASE_SERVICE_ROLE_KEY`; nunca acrescente `NEXT_PUBLIC_`.
-5. Aplique as migrations no projeto correto **antes** de publicar uma versão que dependa delas. Execute o bootstrap uma vez, em máquina confiável, com as variáveis desse projeto.
+5. Confira as migrations do projeto correto antes do deploy. No projeto atual, as tabelas existem: não reaplique a migration inicial. Desabilite o cadastro público e execute o bootstrap uma vez, em máquina confiável, com as credenciais atualizadas desse projeto.
 6. Faça o deploy e ajuste a **Site URL** do Auth para o endereço HTTPS final. Mudanças em variáveis da Vercel exigem um novo deploy para valerem.
 7. Confira login dos dois perfis, pedido real de teste, persistência, totais e isolamento pelo [roteiro de aceite](validacao.md).
 
@@ -115,4 +123,4 @@ Se uma criação de acesso falhar, confira se o estabelecimento ficou inativo e 
 
 Mantenha as migrations no Git e nunca edite uma migration já aplicada: crie a próxima versão. Antes de alterações de banco, confira backup/restauração disponíveis no plano Supabase e valide primeiro em homologação. Cancelamentos preservam os pedidos; não apague registros de pedidos, estabelecimentos ou perfis durante o uso normal.
 
-Uma entrega só está publicada após verificar o deploy e o Supabase configurado. Sem acesso às contas externas, ficam pendentes: criação do projeto, aplicação remota do SQL, configuração de Auth, provisionamento do administrador, vínculo GitHub/Vercel e execução do aceite no endereço publicado.
+Uma entrega só está publicada após verificar o deploy e o Supabase configurado. No estado atual, faltam: rotacionar credenciais privilegiadas anteriormente versionadas, desabilitar cadastro público, provisionar o primeiro administrador, configurar/importar o projeto na Vercel e executar o aceite com login e pedido real no endereço publicado. A existência das tabelas e o acesso somente de leitura ao Supabase já foram verificados.
