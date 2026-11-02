@@ -1,0 +1,3 @@
+module.exports=[23953,a=>{"use strict";var b=a.i(87924);a.s(["default",0,function({reset:a}){return(0,b.jsx)("main",{id:"main-content",className:"center-page",children:(0,b.jsxs)("section",{className:"card stack",children:[(0,b.jsx)("p",{className:"eyebrow",children:"ALGO DEU ERRADO"}),(0,b.jsx)("h1",{children:"Não foi possível carregar"}),(0,b.jsx)("p",{children:"Confira sua conexão e tente novamente. Se o problema continuar, fale com a administração."}),(0,b.jsx)("button",{className:"button",onClick:a,children:"Tentar novamente"})]})})}])}];
+
+//# sourceMappingURL=src_app_error_tsx_0ac07bj196djj._.js.map

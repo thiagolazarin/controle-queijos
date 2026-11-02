@@ -1,0 +1,35 @@
+{
+  "node": {
+    "003460d9274d570c42679a20977fcd82ed94ddb470": {
+      "workers": {
+        "app/pedidos/[id]/page": {
+          "moduleId": 10164,
+          "async": false
+        }
+      },
+      "exportedName": "logoutAction",
+      "filename": "src/lib/actions.ts"
+    },
+    "6036b7755c0511582f51f620afa89d01891065c5e3": {
+      "workers": {
+        "app/pedidos/[id]/page": {
+          "moduleId": 10164,
+          "async": false
+        }
+      },
+      "exportedName": "createOrderAction",
+      "filename": "src/lib/actions.ts"
+    },
+    "607798657d58d2fbd7fa0dc91e70559f9947aac99d": {
+      "workers": {
+        "app/pedidos/[id]/page": {
+          "moduleId": 10164,
+          "async": false
+        }
+      },
+      "exportedName": "loginAction",
+      "filename": "src/lib/actions.ts"
+    }
+  },
+  "edge": {}
+}

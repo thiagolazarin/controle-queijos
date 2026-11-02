@@ -1,0 +1,15 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/acesso-bloqueado/page": "/acesso-bloqueado",
+  "/admin/estabelecimentos/[id]/page": "/admin/estabelecimentos/[id]",
+  "/admin/estabelecimentos/page": "/admin/estabelecimentos",
+  "/admin/page": "/admin",
+  "/admin/pedidos/[id]/page": "/admin/pedidos/[id]",
+  "/admin/pedidos/page": "/admin/pedidos",
+  "/login/page": "/login",
+  "/page": "/",
+  "/pedidos/[id]/page": "/pedidos/[id]",
+  "/pedidos/historico/page": "/pedidos/historico",
+  "/pedidos/page": "/pedidos"
+}

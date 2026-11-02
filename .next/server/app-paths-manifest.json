@@ -1,0 +1,15 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/acesso-bloqueado/page": "app/acesso-bloqueado/page.js",
+  "/admin/estabelecimentos/[id]/page": "app/admin/estabelecimentos/[id]/page.js",
+  "/admin/estabelecimentos/page": "app/admin/estabelecimentos/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/admin/pedidos/[id]/page": "app/admin/pedidos/[id]/page.js",
+  "/admin/pedidos/page": "app/admin/pedidos/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/pedidos/[id]/page": "app/pedidos/[id]/page.js",
+  "/pedidos/historico/page": "app/pedidos/historico/page.js",
+  "/pedidos/page": "app/pedidos/page.js"
+}
