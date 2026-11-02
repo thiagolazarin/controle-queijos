@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
+import { Icon } from "@/components/icon";
 import { Card, Notice, PageHeading, SubmitButton } from "@/components/ui";
 import { createEstablishmentAccess, setEstablishmentActive, updateAccessEmail, updateAccessPassword, updateEstablishment } from "@/lib/admin-actions";
 import { requireProfile } from "@/lib/auth";
@@ -23,22 +24,57 @@ export default async function EstablishmentDetail({ params, searchParams }: { pa
   const hasAccess = Boolean(profileResult.data);
 
   return <div className="stack">
-    <Link className="font-semibold text-green-800 underline" href="/admin/estabelecimentos">← Todos os estabelecimentos</Link>
-    <PageHeading eyebrow="Cadastro do cliente" title={establishment.name} description={`Cadastrado em ${formatDateTime(establishment.created_at)}`}
-      action={<Link className="button button-secondary" href={`/admin/pedidos?estabelecimento=${id}`}>Ver histórico de pedidos</Link>} />
-    {query.created === "1" && <Notice kind="success">Estabelecimento cadastrado e acesso criado com sucesso. Entregue o e-mail e a senha inicial ao responsável.</Notice>}
-    {!establishment.active && <Notice kind="error">Este estabelecimento está inativo e não pode acessar as operações do cliente. Seu histórico está preservado.</Notice>}
+    <Link className="text-link" href="/admin/estabelecimentos">← Voltar aos clientes</Link>
+    <PageHeading title={establishment.name} action={<Link className="button button-secondary" href={`/admin/pedidos?estabelecimento=${id}`}><Icon name="history" />Ver pedidos</Link>} />
+    {query.created === "1" && <Notice kind="success">Cliente cadastrado. Entregue o e-mail e a senha inicial ao responsável.</Notice>}
+    {!establishment.active && <Notice kind="error">Cliente inativo: não pode entrar nem fazer pedidos. Os pedidos anteriores continuam no histórico.</Notice>}
 
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-      <Card><h2 className="text-xl font-semibold">Dados do estabelecimento</h2><p className="muted mb-6 mt-2">Mantenha o nome e as informações de contato atualizados.</p><ActionForm action={updateEstablishment} className="stack"><input type="hidden" name="id" value={id} /><EstablishmentFields initial={establishment} /><div><SubmitButton pendingText="Salvando…">Salvar dados</SubmitButton></div></ActionForm></Card>
-      <Card><h2 className="text-xl font-semibold">Situação do estabelecimento</h2><p className="my-4"><span className={`badge ${establishment.active ? "" : "badge-cancelled"}`}>{establishment.active ? "Ativo" : "Inativo"}</span></p><p className="muted mb-5">{establishment.active ? "Ao desativar, o cliente perde acesso às operações. Todos os pedidos permanecem no histórico." : "Ao reativar, o cliente poderá voltar a acessar sua conta e registrar pedidos."}</p><ActionForm action={setEstablishmentActive} className="stack"><input type="hidden" name="id" value={id} /><input type="hidden" name="active" value={establishment.active ? "false" : "true"} /><SubmitButton className={establishment.active ? "button button-secondary" : "button"} pendingText="Atualizando…">{establishment.active ? "Desativar estabelecimento" : "Reativar estabelecimento"}</SubmitButton></ActionForm></Card>
-    </div>
+    <Card className="stack">
+      <div className="section-heading"><Icon name="customers" /><h2>Dados do cliente</h2></div>
+      <ActionForm action={updateEstablishment} className="stack">
+        <input type="hidden" name="id" value={id} />
+        <EstablishmentFields initial={establishment} />
+        <div><SubmitButton pendingText="Salvando…">Salvar dados</SubmitButton></div>
+      </ActionForm>
+    </Card>
 
-    <Card><h2 className="text-xl font-semibold">Acesso do estabelecimento</h2><p className="muted mb-6 mt-2">O responsável usa o e-mail e a senha para entrar e fazer pedidos.</p>
-      {!hasAccess ? <ActionForm action={createEstablishmentAccess} className="stack"><input type="hidden" name="id" value={id} /><Notice kind="error">Ainda não há uma conta vinculada a este estabelecimento. Crie o acesso abaixo.</Notice><AccessFields initialEmail={establishment.access_email || ""} /><div><SubmitButton pendingText="Criando acesso…">Criar acesso</SubmitButton></div></ActionForm> : <div className="grid-2">
-        <ActionForm action={updateAccessEmail} className="stack"><input type="hidden" name="id" value={id} /><div className="field"><label className="label" htmlFor="access-email">E-mail de acesso</label><input className="input" id="access-email" name="email" type="email" maxLength={254} defaultValue={establishment.access_email || ""} required /></div><p className="muted text-sm">A alteração passa a valer no próximo login.</p><div><SubmitButton className="button button-secondary" pendingText="Atualizando e-mail…">Atualizar e-mail</SubmitButton></div></ActionForm>
-        <ActionForm action={updateAccessPassword} className="stack"><input type="hidden" name="id" value={id} /><div className="field"><label className="label" htmlFor="new-password">Nova senha</label><input className="input" id="new-password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} aria-describedby="new-password-hint" required /></div><p className="muted text-sm" id="new-password-hint">Pelo menos 12 caracteres. Entregue a nova senha ao responsável por um canal seguro.</p><div><SubmitButton className="button button-secondary" pendingText="Redefinindo senha…">Redefinir senha</SubmitButton></div></ActionForm>
-      </div>}
+    <Card className="stack">
+      <h2>Entrada no sistema</h2>
+      {!hasAccess ? <ActionForm action={createEstablishmentAccess} className="stack">
+        <input type="hidden" name="id" value={id} />
+        <p className="muted">Crie o e-mail e a senha que o cliente usará para fazer pedidos.</p>
+        <AccessFields initialEmail={establishment.access_email || ""} />
+        <div><SubmitButton pendingText="Criando acesso…">Criar acesso</SubmitButton></div>
+      </ActionForm> : <>
+        <div><p className="stat-label">E-mail para entrar</p><p className="preserve-lines"><strong>{establishment.access_email}</strong></p></div>
+        <details className="disclosure">
+          <summary>Trocar e-mail</summary>
+          <div className="disclosure-body"><ActionForm action={updateAccessEmail} className="stack">
+            <input type="hidden" name="id" value={id} />
+            <div className="field"><label className="label" htmlFor="access-email">Novo e-mail para entrar</label><input className="input" id="access-email" name="email" type="email" maxLength={254} defaultValue={establishment.access_email || ""} required /></div>
+            <div><SubmitButton className="button button-secondary" pendingText="Salvando e-mail…">Salvar e-mail</SubmitButton></div>
+          </ActionForm></div>
+        </details>
+        <details className="disclosure">
+          <summary>Criar nova senha</summary>
+          <div className="disclosure-body"><ActionForm action={updateAccessPassword} className="stack">
+            <input type="hidden" name="id" value={id} />
+            <div className="field"><label className="label" htmlFor="new-password">Nova senha do cliente</label><input className="input" id="new-password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} aria-describedby="new-password-hint" required /><span className="helper" id="new-password-hint">Use pelo menos 12 caracteres e entregue a nova senha ao responsável.</span></div>
+            <div><SubmitButton className="button button-secondary" pendingText="Salvando senha…">Salvar nova senha</SubmitButton></div>
+          </ActionForm></div>
+        </details>
+      </>}
+    </Card>
+
+    <Card className="compact-card stack">
+      <div className="section-heading"><h2>Acesso aos pedidos</h2><span className={`badge ${establishment.active ? "" : "badge-cancelled"}`}>{establishment.active ? "Ativo" : "Inativo"}</span></div>
+      <p className="muted">{establishment.active ? "Ao desativar, o cliente não poderá entrar nem fazer novos pedidos. O histórico é mantido." : "Reative para o cliente voltar a entrar e fazer pedidos."}</p>
+      <ActionForm action={setEstablishmentActive} className="stack">
+        <input type="hidden" name="id" value={id} />
+        <input type="hidden" name="active" value={establishment.active ? "false" : "true"} />
+        <div><SubmitButton className={establishment.active ? "button button-secondary" : "button"} pendingText="Atualizando…">{establishment.active ? "Desativar cliente" : "Reativar cliente"}</SubmitButton></div>
+      </ActionForm>
+      <small className="muted">Cadastro criado em {formatDateTime(establishment.created_at)}.</small>
     </Card>
   </div>;
 }

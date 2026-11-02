@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
+import { Icon } from "@/components/icon";
 import { OrderForm } from "@/components/order-form";
 import { Card, Notice, PageHeading, StatusBadge, SubmitButton } from "@/components/ui";
 import { cancelOrder, updateOrder } from "@/lib/admin-actions";
@@ -26,25 +27,51 @@ export default async function OrderDetail({ params, searchParams }: { params: Pr
   const creator = authors.get(order.created_by);
 
   return <div className="stack">
-    <Link className="font-semibold text-green-800 underline" href="/admin/pedidos">← Todos os pedidos</Link>
-    <PageHeading eyebrow={establishment?.name || "Pedido"} title={`Pedido #${order.order_number}`} description={`Solicitado em ${formatDateTime(order.created_at)}`}
-      action={<StatusBadge cancelled={Boolean(order.cancelled_at)} />} />
-    {query.created === "1" && <Notice kind="success">Pedido #{order.order_number} registrado e confirmado com sucesso.</Notice>}
+    <Link className="text-link" href="/admin/pedidos">← Voltar aos pedidos</Link>
+    <PageHeading title={`Pedido #${order.order_number}`} action={<StatusBadge cancelled={Boolean(order.cancelled_at)} />} />
+    {query.created === "1" && <Notice kind="success">Pedido #{order.order_number} confirmado.</Notice>}
 
-    <Card><h2 className="mb-5 text-xl font-semibold">Detalhes do pedido</h2><dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      <div><dt className="muted">Estabelecimento</dt><dd className="mt-1 font-semibold"><Link className="text-green-800 underline" href={`/admin/estabelecimentos/${order.establishment_id}`}>{establishment?.name}</Link></dd></div>
-      <div><dt className="muted">Data de entrega</dt><dd className="mt-1 font-semibold">{formatDate(order.delivery_date)}</dd></div>
-      <div><dt className="muted">Quantidade</dt><dd className="mt-1 font-semibold">{order.quantity} queijos</dd></div>
-      <div><dt className="muted">Preço por unidade</dt><dd className="mt-1 font-semibold">{formatMoney(Number(order.unit_price))}</dd></div>
-      <div><dt className="muted">Total do pedido</dt><dd className="mt-1 text-xl font-bold text-green-800">{formatMoney(Number(order.total_price))}</dd></div>
-      <div><dt className="muted">Registrado por</dt><dd className="mt-1 font-semibold">{creator?.full_name || (creator?.role === "admin" ? "Administrador" : "Estabelecimento")}{creator?.role === "admin" && <span className="muted block text-sm font-normal">Pedido registrado pela administração</span>}</dd></div>
-      <div><dt className="muted">Última atualização</dt><dd className="mt-1">{formatDateTime(order.updated_at)}</dd></div>
-      {order.notes && <div className="sm:col-span-2"><dt className="muted">Observações</dt><dd className="mt-1 whitespace-pre-wrap break-words">{order.notes}</dd></div>}
-    </dl></Card>
+    <Card className="stack">
+      <div><p className="stat-label">Cliente</p><h2><Link className="text-link" href={`/admin/estabelecimentos/${order.establishment_id}`}>{establishment?.name}</Link></h2></div>
+      <dl className="detail-grid">
+        <div><dt>Quantidade</dt><dd className="detail-total">{order.quantity} queijos</dd></div>
+        <div><dt>Data da entrega</dt><dd>{formatDate(order.delivery_date)}</dd></div>
+        <div><dt>Valor total</dt><dd>{formatMoney(Number(order.total_price))}</dd></div>
+      </dl>
+      {order.notes && <div><h3>Observações</h3><p className="preserve-lines">{order.notes}</p></div>}
+      <details className="disclosure">
+        <summary>Mais informações</summary>
+        <div className="disclosure-body"><dl className="detail-grid">
+          <div><dt>Pedido feito em</dt><dd>{formatDateTime(order.created_at)}</dd></div>
+          <div><dt>Preço por queijo</dt><dd>{formatMoney(Number(order.unit_price))}</dd></div>
+          <div><dt>Registrado por</dt><dd>{creator?.full_name || (creator?.role === "admin" ? "Administrador" : "Cliente")}{creator?.role === "admin" && <small className="muted block">Pela administração</small>}</dd></div>
+          <div><dt>Última alteração</dt><dd>{formatDateTime(order.updated_at)}</dd></div>
+        </dl></div>
+      </details>
+    </Card>
 
-    {order.cancelled_at ? <Card><h2 className="mb-3 text-xl font-semibold">Pedido cancelado</h2><p className="muted">Cancelado em {formatDateTime(order.cancelled_at)}{order.cancelled_by && authors.get(order.cancelled_by)?.full_name ? ` por ${authors.get(order.cancelled_by)?.full_name}` : ""}.</p><p className="muted mt-2">O registro foi preservado no histórico e não faz parte dos totais do dia. Para atender este estabelecimento, registre um novo pedido.</p><Link className="button mt-5" href="/admin/pedidos#novo-pedido">Registrar novo pedido</Link></Card> : <>
-      <Card><h2 className="text-xl font-semibold">Editar pedido</h2><p className="muted mb-6 mt-2">A quantidade e o total serão atualizados para o estabelecimento e para o resumo do dia.</p><OrderForm action={updateOrder} initial={{ id: order.id, quantity: order.quantity, deliveryDate: order.delivery_date, notes: order.notes || "" }} submitLabel="Salvar alterações" admin /></Card>
-      <Card><h2 className="text-lg font-semibold">Cancelar este pedido</h2><p className="muted mb-4 mt-2">O cancelamento retira o pedido dos totais e preserva seu histórico. Esta ação não pode ser desfeita.</p><ActionForm action={cancelOrder} className="stack"><input type="hidden" name="id" value={order.id} /><label className="flex items-start gap-3"><input className="mt-1 h-5 w-5 accent-green-800" type="checkbox" name="confirm" value="yes" required /><span>Confirmo o cancelamento do pedido #{order.order_number}.</span></label><div><SubmitButton className="button button-danger" pendingText="Cancelando…">Cancelar pedido</SubmitButton></div></ActionForm></Card>
+    {order.cancelled_at ? <Card className="stack">
+      <h2>Pedido cancelado</h2>
+      <p className="muted">Cancelado em {formatDateTime(order.cancelled_at)}{order.cancelled_by && authors.get(order.cancelled_by)?.full_name ? ` por ${authors.get(order.cancelled_by)?.full_name}` : ""}. Ele continua no histórico e não entra no total do dia.</p>
+      <div><Link className="button" href="/admin/pedidos?novo=1#novo-pedido"><Icon name="plus" />Novo pedido</Link></div>
+    </Card> : <>
+      <Card className="stack">
+        <div className="section-heading"><Icon name="orders" /><h2>Alterar pedido</h2></div>
+        <OrderForm action={updateOrder} initial={{ id: order.id, quantity: order.quantity, deliveryDate: order.delivery_date, notes: order.notes || "" }} submitLabel="Salvar alterações" admin />
+      </Card>
+      <Card className="compact-card">
+        <details className="disclosure">
+          <summary>Cancelar pedido</summary>
+          <div className="disclosure-body stack">
+            <p className="muted">O pedido sai do total do dia, mas continua no histórico. O cancelamento não pode ser desfeito.</p>
+            <ActionForm action={cancelOrder} className="stack">
+              <input type="hidden" name="id" value={order.id} />
+              <label className="checkbox-label"><input type="checkbox" name="confirm" value="yes" required /><span>Quero cancelar o pedido #{order.order_number}.</span></label>
+              <div><SubmitButton className="button button-danger" pendingText="Cancelando…">Confirmar cancelamento</SubmitButton></div>
+            </ActionForm>
+          </div>
+        </details>
+      </Card>
     </>}
   </div>;
 }
